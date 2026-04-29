@@ -4,6 +4,8 @@ from accounts.views import (
     TokenView,
     UserDetailView,
     DhowManagerCreateView,
+    GuestUserCreateView,
+    AgentUserCreateView,
     ForgotPasswordView,
     ResetPasswordView,
 )
@@ -18,6 +20,8 @@ urlpatterns = [
         DhowManagerCreateView.as_view(),
         name="dhow_manager_create",
     ),
+    path("guests/signup/", GuestUserCreateView.as_view(), name="guest_user_create"),
+    path("agents/signup/", AgentUserCreateView.as_view(), name="agent_user_create"),
     path("password/forgot/", ForgotPasswordView.as_view(), name="forgot_password"),
     path("password/reset/", ResetPasswordView.as_view(), name="reset_password"),
 ]
