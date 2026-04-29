@@ -1,0 +1,23 @@
+from django.urls import path
+
+from accounts.views import (
+    TokenView,
+    UserDetailView,
+    DhowManagerCreateView,
+    ForgotPasswordView,
+    ResetPasswordView,
+)
+
+app_name = "accounts"
+
+urlpatterns = [
+    path("token/", TokenView.as_view(), name="token"),
+    path("<str:reference>/", UserDetailView.as_view(), name="user_detail"),
+    path(
+        "dhow-managers/signup/",
+        DhowManagerCreateView.as_view(),
+        name="dhow_manager_create",
+    ),
+    path("password/forgot/", ForgotPasswordView.as_view(), name="forgot_password"),
+    path("password/reset/", ResetPasswordView.as_view(), name="reset_password"),
+]
