@@ -89,6 +89,20 @@ class DhowManagerSerializer(BaseUserSerializer):
         return user
 
 
+class GuestUserSerializer(BaseUserSerializer):
+    def create(self, validated_data):
+        user = self.create_user(validated_data, "is_guest")
+        user.save()
+        return user
+
+
+class AgentUserSerializer(BaseUserSerializer):
+    def create(self, validated_data):
+        user = self.create_user(validated_data, "is_agent")
+        user.save()
+        return user
+
+
 """
 Normal Login
 """

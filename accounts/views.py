@@ -17,6 +17,8 @@ from accounts.serializers import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
     DhowManagerSerializer,
+    GuestUserSerializer,
+    AgentUserSerializer,
 )
 
 User = get_user_model()
@@ -95,6 +97,18 @@ Create Users
 class DhowManagerCreateView(generics.CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = DhowManagerSerializer
+    queryset = User.objects.all()
+
+
+class GuestUserCreateView(generics.CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = GuestUserSerializer
+    queryset = User.objects.all()
+
+
+class AgentUserCreateView(generics.CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = AgentUserSerializer
     queryset = User.objects.all()
 
 
