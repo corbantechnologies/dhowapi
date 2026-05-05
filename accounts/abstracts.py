@@ -18,7 +18,7 @@ class UniversalIdModel(models.Model):
 
 
 class UserNumberModel(models.Model):
-    user_no = models.CharField(
+    usercode = models.CharField(
         max_length=40,
         unique=True,
         editable=False,

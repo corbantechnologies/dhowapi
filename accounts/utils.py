@@ -111,3 +111,28 @@ def send_password_reset_success_email(user):
             f"Error sending password reset success email to {user.email}: {str(e)}"
         )
         return None
+
+
+# dhow manager activation link
+def send_account_created_by_admin_email(user, activation_link=None):
+    email_body = render_to_string(
+        "account_activation_email.html",
+        {
+            "user": user,
+            "activation_link": activation_link,
+            "current_year": datetime.now().year,
+        },
+    )
+    params = {
+        "from": "Dhow Onboarding <dhow-onboarding@corbantechnologies.org>",
+        "to": [user.email],
+        "subject": "Activate Your Tamarind Dhow Account",
+        "html": email_body,
+    }
+    try:
+        response = resend.Emails.send(params)
+        logger.info(f"Email sent to {user.email} with response: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"Error sending email to {user.email}: {str(e)}")
+        return None

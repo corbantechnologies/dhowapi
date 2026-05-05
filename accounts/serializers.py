@@ -20,6 +20,7 @@ from accounts.utils import (
     send_forgot_password_email,
     send_password_reset_success_email,
 )
+from dhowapi.settings import DOMAIN
 
 User = get_user_model()
 
@@ -51,7 +52,7 @@ class BaseUserSerializer(serializers.ModelSerializer):
             "id",
             "email",
             "username",
-            "user_no",
+            "usercode",
             "first_name",
             "last_name",
             "password",
@@ -78,14 +79,32 @@ class BaseUserSerializer(serializers.ModelSerializer):
         setattr(user, role_field, True)
         user.is_active = True
         user.save()
-        send_welcome_email(user)
+        # send_welcome_email(user)
         return user
 
 
 class DhowManagerSerializer(BaseUserSerializer):
+    """
+    Dhow Manager Serializer
+    - As this is an internal management operation, we need to send an email for the manager to activate their account.
+    - Which means that a staff or superuser should be the one to create a dhow manager.
+    """
+    password = serializers.CharField(
+        required=False, write_only=True, allow_blank=True, allow_null=True
+    )
+
     def create(self, validated_data):
         user = self.create_user(validated_data, "is_dhow_manager")
         user.save()
+
+        token_generator = PasswordResetTokenGenerator()
+        token = token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        activation_link = f"{DOMAIN}/activate/{uid}/{token}"
+        # send activation link
+        
+        send_account_created_by_admin_email(user, activation_link)
+
         return user
 
 
@@ -93,6 +112,7 @@ class GuestUserSerializer(BaseUserSerializer):
     def create(self, validated_data):
         user = self.create_user(validated_data, "is_guest")
         user.save()
+        send_welcome_email(user)
         return user
 
 
@@ -100,6 +120,7 @@ class AgentUserSerializer(BaseUserSerializer):
     def create(self, validated_data):
         user = self.create_user(validated_data, "is_agent")
         user.save()
+        send_welcome_email(user)
         return user
 
 

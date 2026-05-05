@@ -20,6 +20,7 @@ from accounts.serializers import (
     GuestUserSerializer,
     AgentUserSerializer,
 )
+from accounts.permissions import IsSystemAdminOrReadOnly
 
 User = get_user_model()
 
@@ -50,7 +51,7 @@ class TokenView(APIView):
                         "username": user.username,
                         "first_name": user.first_name,
                         "last_name": user.last_name,
-                        "user_no": user.user_no,
+                        "usercode": user.usercode,
                         "phone_number": user.phone_number,
                         "is_guest": user.is_guest,
                         "is_dhow_manager": user.is_dhow_manager,
@@ -86,7 +87,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = BaseUserSerializer
     queryset = User.objects.all()
-    lookup_field = "reference"
+    lookup_field = "usercode"
 
 
 """
@@ -95,7 +96,7 @@ Create Users
 
 
 class DhowManagerCreateView(generics.CreateAPIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsSystemAdminOrReadOnly,)
     serializer_class = DhowManagerSerializer
     queryset = User.objects.all()
 
