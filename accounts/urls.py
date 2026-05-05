@@ -14,7 +14,7 @@ app_name = "accounts"
 
 urlpatterns = [
     path("token/", TokenView.as_view(), name="token"),
-    path("<str:reference>/", UserDetailView.as_view(), name="user_detail"),
+    path("<str:usercode>/", UserDetailView.as_view(), name="user_detail"),
     path(
         "dhow-managers/signup/",
         DhowManagerCreateView.as_view(),
