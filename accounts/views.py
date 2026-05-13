@@ -17,7 +17,10 @@ from accounts.serializers import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
     DhowManagerSerializer,
+    GuestUserSerializer,
+    AgentUserSerializer,
 )
+from accounts.permissions import IsSystemAdminOrReadOnly
 
 User = get_user_model()
 
@@ -48,7 +51,7 @@ class TokenView(APIView):
                         "username": user.username,
                         "first_name": user.first_name,
                         "last_name": user.last_name,
-                        "user_no": user.user_no,
+                        "usercode": user.usercode,
                         "phone_number": user.phone_number,
                         "is_guest": user.is_guest,
                         "is_dhow_manager": user.is_dhow_manager,
@@ -78,13 +81,16 @@ class TokenView(APIView):
 """
 All Users
 """
-
+class UserListView(generics.ListAPIView):
+    permission_classes = (IsSystemAdminOrReadOnly,)
+    serializer_class = BaseUserSerializer
+    queryset = User.objects.all()
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = BaseUserSerializer
     queryset = User.objects.all()
-    lookup_field = "reference"
+    lookup_field = "usercode"
 
 
 """
@@ -93,8 +99,20 @@ Create Users
 
 
 class DhowManagerCreateView(generics.CreateAPIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsSystemAdminOrReadOnly,)
     serializer_class = DhowManagerSerializer
+    queryset = User.objects.all()
+
+
+class GuestUserCreateView(generics.CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = GuestUserSerializer
+    queryset = User.objects.all()
+
+
+class AgentUserCreateView(generics.CreateAPIView):
+    permission_classes = (IsSystemAdminOrReadOnly,)
+    serializer_class = AgentUserSerializer
     queryset = User.objects.all()
 
 
@@ -130,3 +148,52 @@ class ResetPasswordView(generics.GenericAPIView):
                 status=status.HTTP_200_OK,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+"""
+Acivate Account
+"""
+
+class ActivateAccountView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, uidb64=None, token=None):
+        uidb64 = uidb64 or request.data.get("uidb64")
+        token = token or request.data.get("token")
+        password = request.data.get("password")
+
+        if not all([uidb64, token, password]):
+            return Response(
+                {"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {"error": "Invalid activation link"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token_generator = PasswordResetTokenGenerator()
+        if token_generator.check_token(user, token):
+            # Validate password using the serializer
+            serializer = BaseUserSerializer(
+                user, data={"password": password}, partial=True
+            )
+
+            if serializer.is_valid():
+                user = serializer.save()
+                user.is_active = True  # Activate the account
+                user.save()
+
+                return Response(
+                    {"detail": "Your account has been activated successfully. You can now log in."},
+                    status=status.HTTP_200_OK,
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(
+            {"error": "Invalid or expired activation link"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

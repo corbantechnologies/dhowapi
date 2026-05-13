@@ -99,5 +99,5 @@ class User(
     def get_short_name(self):
         return self.first_name
 
-    def get_user_no(self):
-        return self.user_no
+    def get_usercode(self):
+        return self.usercode
