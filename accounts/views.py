@@ -148,3 +148,52 @@ class ResetPasswordView(generics.GenericAPIView):
                 status=status.HTTP_200_OK,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+"""
+Acivate Account
+"""
+
+class ActivateAccountView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, uidb64=None, token=None):
+        uidb64 = uidb64 or request.data.get("uidb64")
+        token = token or request.data.get("token")
+        password = request.data.get("password")
+
+        if not all([uidb64, token, password]):
+            return Response(
+                {"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {"error": "Invalid activation link"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token_generator = PasswordResetTokenGenerator()
+        if token_generator.check_token(user, token):
+            # Validate password using the serializer
+            serializer = BaseUserSerializer(
+                user, data={"password": password}, partial=True
+            )
+
+            if serializer.is_valid():
+                user = serializer.save()
+                user.is_active = True  # Activate the account
+                user.save()
+
+                return Response(
+                    {"detail": "Your account has been activated successfully. You can now log in."},
+                    status=status.HTTP_200_OK,
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(
+            {"error": "Invalid or expired activation link"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

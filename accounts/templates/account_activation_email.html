@@ -120,6 +120,25 @@
                 <div class="greeting">Hello {{ user.first_name|default:user.email|default:"there" }},</div>
                 
                 <p>An administrator has created a new {% if user.is_dhow_manager %}Dhow Manager{% elif user.is_agent %}Agent{% else %}account{% endif %} for you at Tamarind Dhow.</p>
+                
+                <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 24px;">
+                    <p style="margin-bottom: 12px; font-weight: 600; color: #111827; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Your Account Details:</p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px; width: 100px;">Username:</td>
+                            <td style="padding: 4px 0; color: #111827; font-size: 14px; font-weight: 500;">{{ user.username }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">Email:</td>
+                            <td style="padding: 4px 0; color: #111827; font-size: 14px; font-weight: 500;">{{ user.email }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">User Code:</td>
+                            <td style="padding: 4px 0; color: #111827; font-size: 14px; font-weight: 500;">{{ user.usercode }}</td>
+                        </tr>
+                    </table>
+                </div>
+
                 <p>To access your account, please click the button below to verify your email and set up your secure password. This activation link will expire in 24 hours.</p>
                 
                 <div class="action-container">

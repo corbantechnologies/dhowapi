@@ -19,6 +19,7 @@ from accounts.utils import (
     send_welcome_email,
     send_forgot_password_email,
     send_password_reset_success_email,
+    send_account_created_by_admin_email,
 )
 from dhowapi.settings import DOMAIN
 

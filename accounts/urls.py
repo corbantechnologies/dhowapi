@@ -9,6 +9,7 @@ from accounts.views import (
     AgentUserCreateView,
     ForgotPasswordView,
     ResetPasswordView,
+    ActivateAccountView
 )
 
 app_name = "accounts"
@@ -24,6 +25,11 @@ urlpatterns = [
     ),
     path("guests/signup/", GuestUserCreateView.as_view(), name="guest_user_create"),
     path("agents/signup/", AgentUserCreateView.as_view(), name="agent_user_create"),
+    path(
+        "activate/<str:uidb64>/<str:token>/",
+        ActivateAccountView.as_view(),
+        name="activate",
+    ),
     path("password/forgot/", ForgotPasswordView.as_view(), name="forgot_password"),
     path("password/reset/", ResetPasswordView.as_view(), name="reset_password"),
 ]
