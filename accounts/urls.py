@@ -2,6 +2,7 @@ from django.urls import path
 
 from accounts.views import (
     TokenView,
+    UserListView,
     UserDetailView,
     DhowManagerCreateView,
     GuestUserCreateView,
@@ -14,6 +15,7 @@ app_name = "accounts"
 
 urlpatterns = [
     path("token/", TokenView.as_view(), name="token"),
+    path("", UserListView.as_view(), name="user_list"),
     path("<str:usercode>/", UserDetailView.as_view(), name="user_detail"),
     path(
         "dhow-managers/signup/",

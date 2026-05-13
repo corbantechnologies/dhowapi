@@ -81,7 +81,10 @@ class TokenView(APIView):
 """
 All Users
 """
-
+class UserListView(generics.ListAPIView):
+    permission_classes = (IsSystemAdminOrReadOnly,)
+    serializer_class = BaseUserSerializer
+    queryset = User.objects.all()
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -108,7 +111,7 @@ class GuestUserCreateView(generics.CreateAPIView):
 
 
 class AgentUserCreateView(generics.CreateAPIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsSystemAdminOrReadOnly,)
     serializer_class = AgentUserSerializer
     queryset = User.objects.all()
 

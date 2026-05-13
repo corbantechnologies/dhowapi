@@ -117,10 +117,24 @@ class GuestUserSerializer(BaseUserSerializer):
 
 
 class AgentUserSerializer(BaseUserSerializer):
+    """
+    The Tamarind Dhow Manager decides which agent to give access to the system.
+    """
+
+    password = serializers.CharField(
+        required=False, write_only=True, allow_blank=True, allow_null=True
+    )
     def create(self, validated_data):
         user = self.create_user(validated_data, "is_agent")
         user.save()
-        send_welcome_email(user)
+        token_generator = PasswordResetTokenGenerator()
+        token = token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        activation_link = f"{DOMAIN}/activate/{uid}/{token}"
+        # send activation link
+        
+        send_account_created_by_admin_email(user, activation_link)
+
         return user
 
 
