@@ -48,17 +48,13 @@ class TableBulkCreateView(APIView):
 
     def post(self, request, *args, **kwargs):
         schedule_id = request.data.get("schedule")
-        prefix = request.data.get("prefix", "T")
-        try:
-            start_num = int(request.data.get("start_number", 1))
-            count = int(request.data.get("count", 1))
-            capacity = int(request.data.get("capacity", 4))
-        except (ValueError, TypeError):
-            return Response({"error": "start_number, count, and capacity must be integers."}, status=status.HTTP_400_BAD_REQUEST)
-        description = request.data.get("description", "")
+        tables_list = request.data.get("tables", [])
 
         if not schedule_id:
             return Response({"error": "Schedule is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not isinstance(tables_list, list) or len(tables_list) == 0:
+            return Response({"error": "A list of tables is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         from schedule.models import Schedule
         from django.db.models import Sum
@@ -70,7 +66,10 @@ class TableBulkCreateView(APIView):
         existing_capacity = Table.objects.filter(schedule=schedule).aggregate(total=Sum('capacity'))['total'] or 0
 
         # Calculate new capacity
-        new_total_capacity = count * capacity
+        try:
+            new_total_capacity = sum(int(t.get("capacity", 4)) for t in tables_list)
+        except (ValueError, TypeError):
+            return Response({"error": "Capacity must be an integer for all tables."}, status=status.HTTP_400_BAD_REQUEST)
 
         if existing_capacity + new_total_capacity > max_capacity:
             return Response(
@@ -82,18 +81,26 @@ class TableBulkCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate duplicate table numbers
+        seen_table_numbers = set()
+        for idx, t in enumerate(tables_list):
+            num = t.get("table_number")
+            if not num:
+                return Response({"error": f"Table number is required for item at index {idx}."}, status=status.HTTP_400_BAD_REQUEST)
+            if num in seen_table_numbers:
+                return Response({"error": f"Duplicate table number '{num}' in request list."}, status=status.HTTP_400_BAD_REQUEST)
+            seen_table_numbers.add(num)
+            if Table.objects.filter(schedule=schedule, table_number=num).exists():
+                return Response({"error": f"Table number '{num}' already exists for this sailing voyage schedule."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Create tables
         created_tables = []
-        for i in range(count):
-            table_num = f"{prefix}{start_num + i}"
-            # Ensure table_number is unique for this schedule
-            if Table.objects.filter(schedule=schedule, table_number=table_num).exists():
-                continue
+        for t in tables_list:
             table = Table.objects.create(
                 schedule=schedule,
-                table_number=table_num,
-                capacity=capacity,
-                description=description,
+                table_number=t.get("table_number"),
+                capacity=int(t.get("capacity", 4)),
+                description=t.get("description", ""),
                 is_available=True
             )
             created_tables.append(table)
