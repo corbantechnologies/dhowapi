@@ -1,0 +1,1 @@
+# BookingStatusLog migrations package

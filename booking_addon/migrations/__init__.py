@@ -1,0 +1,1 @@
+# BookingAddon migrations package

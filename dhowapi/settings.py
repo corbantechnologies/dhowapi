@@ -37,6 +37,21 @@ INSTALLED_APPS = [
     "cloudinary",
     # Local apps
     "accounts",
+    "dhow",
+    "package",
+    "addon",
+    "schedule_template",
+    "schedule",
+    "table",
+    "booking",
+    "booking_guest",
+    "booking_addon",
+    "booking_reschedule",
+    "booking_status_log",
+    "payment",
+    "escrow",
+    "refund",
+    "refund_log",
 ]
 
 MIDDLEWARE = [

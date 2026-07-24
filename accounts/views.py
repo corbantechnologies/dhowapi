@@ -197,3 +197,61 @@ class ActivateAccountView(APIView):
             {"error": "Invalid or expired activation link"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class SuperuserCreateView(APIView):
+    def get_permissions(self):
+        if User.objects.filter(is_superuser=True).exists():
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get("email")
+        password = request.data.get("password")
+        username = request.data.get("username")
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
+
+        if not all([email, password, username, first_name, last_name]):
+            return Response(
+                {"error": "email, password, username, first_name, and last_name are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "User with this email already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "User with this username already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.create_superuser(
+                email=email,
+                password=password,
+                username=username,
+                first_name=first_name,
+                last_name=last_name
+            )
+            return Response(
+                {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_superuser": user.is_superuser,
+                    "detail": "Superuser created successfully."
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

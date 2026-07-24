@@ -9,7 +9,8 @@ from accounts.views import (
     AgentUserCreateView,
     ForgotPasswordView,
     ResetPasswordView,
-    ActivateAccountView
+    ActivateAccountView,
+    SuperuserCreateView
 )
 
 app_name = "accounts"
@@ -18,6 +19,11 @@ urlpatterns = [
     path("token/", TokenView.as_view(), name="token"),
     path("", UserListView.as_view(), name="user_list"),
     path("<str:usercode>/", UserDetailView.as_view(), name="user_detail"),
+    path(
+        "superusers/signup/",
+        SuperuserCreateView.as_view(),
+        name="superuser_create",
+    ),
     path(
         "dhow-managers/signup/",
         DhowManagerCreateView.as_view(),

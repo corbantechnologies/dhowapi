@@ -73,9 +73,9 @@ class User(
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
-    is_dhow_manager = models.BooleanField(default=False)
-    is_guest = models.BooleanField(default=False)
-    is_agent = models.BooleanField(default=False)
+    is_dhow_manager = models.BooleanField(default=False) # staff + admin
+    is_guest = models.BooleanField(default=False) # registered and non-registered users
+    is_agent = models.BooleanField(default=False) # tour operators, groups etc
 
     # Password Reset
     password_reset_code = models.CharField(max_length=6, blank=True, null=True)
