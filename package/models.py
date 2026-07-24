@@ -6,6 +6,9 @@ class Package(UniversalIdModel, TimeStampedModel, ReferenceModel):
     MEAL_TYPE_CHOICES = (
         ("lunch", "Lunch"),
         ("sunset_cruise", "Sunset Cruise"),
+        ("booze_cruise", "Booze Cruise"),
+        ("special_cruise", "Special Cruise"),
+        ("dinner_cruise", "Dinner Cruise"),
     )
 
     name = models.CharField(max_length=255)
