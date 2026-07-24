@@ -3,8 +3,8 @@ from booking.models import Booking
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    booked_by_email = serializers.ReadOnlyField(source="booked_by.email")
-    booked_by_name = serializers.ReadOnlyField(source="booked_by.get_full_name")
+    booked_by_email = serializers.SerializerMethodField()
+    booked_by_name = serializers.SerializerMethodField()
     schedule_date = serializers.ReadOnlyField(source="schedule.date")
     schedule_meal_type = serializers.ReadOnlyField(source="schedule.get_meal_type_display")
     package_name = serializers.ReadOnlyField(source="package.name")
@@ -47,6 +47,9 @@ class BookingSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "reference", "created_by", "created_at", "updated_at")
+        extra_kwargs = {
+            "booked_by": {"required": False, "allow_null": True},
+        }
 
     def validate(self, attrs):
         schedule = attrs.get("schedule")
@@ -74,3 +77,15 @@ class BookingSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+    def get_booked_by_name(self, obj):
+        primary_guest = obj.booking_guests.filter(is_primary=True).first()
+        if primary_guest:
+            return f"{primary_guest.first_name} {primary_guest.last_name}"
+        return obj.booked_by.get_full_name() if obj.booked_by else ""
+
+    def get_booked_by_email(self, obj):
+        primary_guest = obj.booking_guests.filter(is_primary=True).first()
+        if primary_guest and primary_guest.email:
+            return primary_guest.email
+        return obj.booked_by.email if obj.booked_by else ""
