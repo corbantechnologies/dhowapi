@@ -19,6 +19,11 @@ class BookingSerializer(serializers.ModelSerializer):
         source="get_status_display", read_only=True
     )
 
+    # Optional nested guest fields for bulk walk-in/creation optimization
+    primary_guest_name = serializers.CharField(write_only=True, required=False)
+    primary_guest_email = serializers.EmailField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    primary_guest_phone = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = Booking
         fields = (
@@ -48,6 +53,9 @@ class BookingSerializer(serializers.ModelSerializer):
             "table_number",
             "total_amount",
             "booking_guests",
+            "primary_guest_name",
+            "primary_guest_email",
+            "primary_guest_phone",
             "created_by",
             "created_at",
             "updated_at",
@@ -56,6 +64,34 @@ class BookingSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "booked_by": {"required": False, "allow_null": True},
         }
+
+    def create(self, validated_data):
+        primary_name = validated_data.pop("primary_guest_name", "")
+        primary_email = validated_data.pop("primary_guest_email", "")
+        primary_phone = validated_data.pop("primary_guest_phone", "")
+
+        booking = super().create(validated_data)
+
+        # Create primary guest immediately so that to_representation is pre-populated
+        if primary_name:
+            name_parts = primary_name.strip().split(" ")
+            first_name = name_parts[0] if name_parts else "Walk-In"
+            last_name = name_parts[1] if len(name_parts) > 1 else "Guest"
+            if len(name_parts) > 2:
+                last_name = " ".join(name_parts[1:])
+
+            from booking_guest.models import BookingGuest
+            BookingGuest.objects.create(
+                booking=booking,
+                first_name=first_name,
+                last_name=last_name,
+                email=primary_email or None,
+                phone=primary_phone or None,
+                is_primary=True,
+                status="pending"
+            )
+
+        return booking
 
     def validate(self, attrs):
         schedule = attrs.get("schedule")
@@ -111,17 +147,4 @@ class BookingSerializer(serializers.ModelSerializer):
             return ", ".join([t.table_number for t in tables])
         return ""
 
-    def to_representation(self, instance):
-        # Auto-heal: Ensure guest records always match party_size count
-        guest_count = instance.booking_guests.count()
-        if guest_count < instance.party_size:
-            from booking_guest.models import BookingGuest
-            for i in range(guest_count + 1, instance.party_size + 1):
-                BookingGuest.objects.create(
-                    booking=instance,
-                    first_name="Guest",
-                    last_name=str(i),
-                    is_primary=False,
-                    status="pending"
-                )
-        return super().to_representation(instance)
+

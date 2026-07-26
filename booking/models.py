@@ -91,6 +91,48 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         verbose_name_plural = "Bookings"
         ordering = ["-created_at"]
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new:
+            from booking_guest.models import BookingGuest
+
+            first_name = "Walk-In"
+            last_name = "Guest"
+            email = getattr(self, "_primary_guest_email", None)
+            phone = getattr(self, "_primary_guest_phone", None)
+
+            name = getattr(self, "_primary_guest_name", None)
+            if name:
+                name_parts = name.strip().split(" ")
+                first_name = name_parts[0] if name_parts else "Walk-In"
+                last_name = name_parts[1] if len(name_parts) > 1 else "Guest"
+                if len(name_parts) > 2:
+                    last_name = " ".join(name_parts[1:])
+            elif self.booked_by:
+                first_name = self.booked_by.first_name or "Guest"
+                last_name = self.booked_by.last_name or "1"
+                email = self.booked_by.email
+
+            BookingGuest.objects.create(
+                booking=self,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                phone=phone,
+                is_primary=True,
+                status="pending",
+            )
+
+            for i in range(2, self.party_size + 1):
+                BookingGuest.objects.create(
+                    booking=self,
+                    first_name="Guest",
+                    last_name=str(i),
+                    is_primary=False,
+                    status="pending",
+                )
+
     def __str__(self):
         email = self.booked_by.email if self.booked_by else "No Owner"
         return f"Booking {self.reference} - {email} ({self.party_size} pax: {self.adult_count}a, {self.child_count}c)"
