@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django_filters",
     "corsheaders",
     "cloudinary",
+    "django_q",
     # Local apps
     "accounts",
     "dhow",
