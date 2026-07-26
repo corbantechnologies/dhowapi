@@ -128,3 +128,62 @@ class ScheduleCancelView(APIView):
 
         serializer = ScheduleSerializer(schedule)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SchedulePublicManifestView(APIView):
+    permission_classes = []  # Public endpoint
+
+    def get(self, request, reference):
+        schedule = get_object_or_404(Schedule, reference=reference)
+
+        # Get all confirmed or completed bookings for this schedule
+        bookings = schedule.bookings.filter(
+            status__in=["confirmed", "completed", "pending", "no_show"]
+        ).order_by("created_at")
+
+        # Format manifest records
+        manifest_data = []
+        for b in bookings:
+            # Get table numbers
+            tables = b.assigned_tables.all()
+            table_numbers = ", ".join([t.table_number for t in tables]) if tables.exists() else ""
+
+            # Get guests details
+            guests_data = []
+            for g in b.booking_guests.all().order_by("id"):
+                guests_data.append({
+                    "id": g.id,
+                    "first_name": g.first_name,
+                    "last_name": g.last_name,
+                    "email": g.email or "",
+                    "phone": g.phone or "",
+                    "is_primary": g.is_primary,
+                    "status": g.status,
+                })
+
+            manifest_data.append({
+                "id": b.id,
+                "reference": b.reference,
+                "booked_by_name": b.booked_by_name or "Walk-In Guest",
+                "party_size": b.party_size,
+                "adult_count": b.adult_count,
+                "child_count": b.child_count,
+                "table_number": table_numbers,
+                "special_requests": b.special_requests or "",
+                "status": b.status,
+                "booking_guests": guests_data,
+            })
+
+        data = {
+            "schedule": {
+                "reference": schedule.reference,
+                "dhow_name": schedule.dhow.name,
+                "date": str(schedule.date),
+                "meal_type_display": schedule.get_meal_type_display(),
+                "departure_time": str(schedule.departure_time),
+                "return_time": str(schedule.return_time),
+                "status": schedule.status,
+            },
+            "manifest": manifest_data
+        }
+        return Response(data, status=status.HTTP_200_OK)
