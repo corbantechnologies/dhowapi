@@ -84,6 +84,9 @@ class ScheduleCancelView(APIView):
         # Cancel all pending/confirmed bookings for this schedule
         schedule.bookings.filter(status__in=["pending", "confirmed"]).update(status="cancelled")
 
+        # Release all seating tables for this sailing voyage schedule
+        schedule.tables.update(assigned_to=None, is_available=True)
+
         # Trigger Escrow reversal / refund / reschedule creation for bookings
         try:
             from escrow.models import EscrowRecord
