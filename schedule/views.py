@@ -81,6 +81,9 @@ class ScheduleCancelView(APIView):
         schedule.cancelled_reason = reason
         schedule.save()
 
+        # Cancel all pending/confirmed bookings for this schedule
+        schedule.bookings.filter(status__in=["pending", "confirmed"]).update(status="cancelled")
+
         # Trigger Escrow reversal / refund / reschedule creation for bookings
         try:
             from escrow.models import EscrowRecord

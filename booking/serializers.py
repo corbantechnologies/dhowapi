@@ -11,7 +11,7 @@ class BookingSerializer(serializers.ModelSerializer):
     schedule_date = serializers.ReadOnlyField(source="schedule.date")
     schedule_meal_type = serializers.ReadOnlyField(source="schedule.get_meal_type_display")
     package_name = serializers.ReadOnlyField(source="package.name")
-    table_number = serializers.ReadOnlyField(source="table.table_number")
+    table_number = serializers.SerializerMethodField()
     total_amount = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True
     )
@@ -104,3 +104,24 @@ class BookingSerializer(serializers.ModelSerializer):
         if primary_guest and primary_guest.email:
             return primary_guest.email
         return obj.booked_by.email if obj.booked_by else ""
+
+    def get_table_number(self, obj):
+        tables = obj.assigned_tables.all()
+        if tables.exists():
+            return ", ".join([t.table_number for t in tables])
+        return ""
+
+    def to_representation(self, instance):
+        # Auto-heal: Ensure guest records always match party_size count
+        guest_count = instance.booking_guests.count()
+        if guest_count < instance.party_size:
+            from booking_guest.models import BookingGuest
+            for i in range(guest_count + 1, instance.party_size + 1):
+                BookingGuest.objects.create(
+                    booking=instance,
+                    first_name="Guest",
+                    last_name=str(i),
+                    is_primary=False,
+                    status="pending"
+                )
+        return super().to_representation(instance)
