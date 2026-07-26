@@ -28,6 +28,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
             "departure_time",
             "return_time",
             "price_per_person",
+            "price_per_child",
             "exclusive_flat_fee",
             "status",
             "status_display",

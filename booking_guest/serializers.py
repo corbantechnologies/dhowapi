@@ -14,6 +14,7 @@ class BookingGuestSerializer(serializers.ModelSerializer):
             "phone",
             "dietary_needs",
             "is_primary",
+            "status",
             "created_at",
             "updated_at",
         )

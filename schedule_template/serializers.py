@@ -21,6 +21,7 @@ class ScheduleTemplateSerializer(serializers.ModelSerializer):
             "return_time",
             "days_of_week",
             "price_per_person",
+            "price_per_child",
             "exclusive_flat_fee",
             "is_active",
             "notes",

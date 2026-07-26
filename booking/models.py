@@ -46,6 +46,8 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         related_name="bookings",
     )
     party_size = models.PositiveIntegerField(default=1)
+    adult_count = models.PositiveIntegerField(default=1)
+    child_count = models.PositiveIntegerField(default=0)
     status = models.CharField(
         max_length=50, choices=STATUS_CHOICES, default="pending"
     )
@@ -90,7 +92,8 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Booking {self.reference} - {self.booked_by.email} ({self.party_size} pax)"
+        email = self.booked_by.email if self.booked_by else "No Owner"
+        return f"Booking {self.reference} - {email} ({self.party_size} pax: {self.adult_count}a, {self.child_count}c)"
 
     @property
     def total_amount(self):
@@ -100,6 +103,15 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
             if self.is_exclusive
             else (self.schedule.price_per_person or (self.package.base_price if self.package else 0))
         )
-        base_total = unit_price if self.is_exclusive else (unit_price * self.party_size)
+        child_unit_price = (
+            0.00
+            if self.is_exclusive
+            else (getattr(self.schedule, "price_per_child", 0.00))
+        )
+        base_total = (
+            unit_price
+            if self.is_exclusive
+            else ((unit_price * self.adult_count) + (child_unit_price * self.child_count))
+        )
         addons_total = sum([addon.total_price for addon in self.booking_addons.all()])
         return base_total + addons_total

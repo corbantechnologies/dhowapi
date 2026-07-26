@@ -29,6 +29,9 @@ class ScheduleTemplate(UniversalIdModel, TimeStampedModel, ReferenceModel):
     price_per_person = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
     )
+    price_per_child = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00
+    )
     exclusive_flat_fee = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
     )

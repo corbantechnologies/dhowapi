@@ -1,10 +1,13 @@
+import datetime
 from rest_framework import serializers
 from booking.models import Booking
+from booking_guest.serializers import BookingGuestSerializer
 
 
 class BookingSerializer(serializers.ModelSerializer):
     booked_by_email = serializers.SerializerMethodField()
     booked_by_name = serializers.SerializerMethodField()
+    booking_guests = BookingGuestSerializer(many=True, read_only=True)
     schedule_date = serializers.ReadOnlyField(source="schedule.date")
     schedule_meal_type = serializers.ReadOnlyField(source="schedule.get_meal_type_display")
     package_name = serializers.ReadOnlyField(source="package.name")
@@ -31,6 +34,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "package",
             "package_name",
             "party_size",
+            "adult_count",
+            "child_count",
             "status",
             "status_display",
             "cancellation_preference",
@@ -42,6 +47,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "table",
             "table_number",
             "total_amount",
+            "booking_guests",
             "created_by",
             "created_at",
             "updated_at",
@@ -53,10 +59,19 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         schedule = attrs.get("schedule")
+        adult_count = attrs.get("adult_count")
+        child_count = attrs.get("child_count")
+        if adult_count is not None or child_count is not None:
+            ac = adult_count if adult_count is not None else 1
+            cc = child_count if child_count is not None else 0
+            attrs["party_size"] = ac + cc
+
         party_size = attrs.get("party_size", 1)
         is_exclusive = attrs.get("is_exclusive", False)
 
         if schedule:
+            if schedule.date < datetime.date.today():
+                raise serializers.ValidationError("Cannot book a sailing in the past.")
             if not schedule.is_open:
                 raise serializers.ValidationError("Bookings are closed for this schedule.")
             if schedule.status in ["cancelled", "completed"]:
