@@ -7,6 +7,9 @@ class ScheduleTemplate(UniversalIdModel, TimeStampedModel, ReferenceModel):
     MEAL_TYPE_CHOICES = (
         ("lunch", "Lunch"),
         ("sunset_cruise", "Sunset Cruise"),
+        ("booze_cruise", "Booze Cruise"),
+        ("special_cruise", "Special Cruise"),
+        ("dinner_cruise", "Dinner Cruise"),
     )
 
     dhow = models.ForeignKey(
@@ -24,6 +27,9 @@ class ScheduleTemplate(UniversalIdModel, TimeStampedModel, ReferenceModel):
         help_text="List of days of week (e.g. ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'])",
     )
     price_per_person = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00
+    )
+    price_per_child = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00
     )
     exclusive_flat_fee = models.DecimalField(

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activate Your Tamarind Dhow Account</title>
+    <title>Welcome to Tamarind Dhow</title>
     <style>
         /* Base styles */
         body {
@@ -125,7 +125,7 @@
                     <p style="margin-bottom: 12px; font-weight: 600; color: #111827; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Your Account Details:</p>
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                         <tr>
-                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px; width: 100px;">Username:</td>
+                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px; width: 150px;">Username:</td>
                             <td style="padding: 4px 0; color: #111827; font-size: 14px; font-weight: 500;">{{ user.username }}</td>
                         </tr>
                         <tr>
@@ -136,18 +136,22 @@
                             <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">User Code:</td>
                             <td style="padding: 4px 0; color: #111827; font-size: 14px; font-weight: 500;">{{ user.usercode }}</td>
                         </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">Temporary Password:</td>
+                            <td style="padding: 4px 0; color: #b45309; font-size: 14px; font-weight: 700; font-family: monospace;">{{ temp_password }}</td>
+                        </tr>
                     </table>
                 </div>
 
-                <p>To access your account, please click the button below to verify your email and set up your secure password. This activation link will expire in 24 hours.</p>
+                <p>To access your account, please click the button below to log in directly. For security, you can change your password at any time from your profile details page after logging in.</p>
                 
                 <div class="action-container">
-                    <a href="{{ activation_link }}" class="action-button">Activate My Account</a>
+                    <a href="{{ domain }}/login" class="action-button">Log In to My Account</a>
                 </div>
                 
                 <p style="margin-bottom: 12px; font-size: 14px;">If the button above does not work, copy and paste the following link into your browser:</p>
                 <div class="fallback-link-container">
-                    <a href="{{ activation_link }}" class="fallback-link">{{ activation_link }}</a>
+                    <a href="{{ domain }}/login" class="fallback-link">{{ domain }}/login</a>
                 </div>
                 
                 <p style="margin-bottom: 0;">If you were not expecting this invitation, please ignore this email or contact your administrator.</p>

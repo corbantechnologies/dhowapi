@@ -20,6 +20,7 @@ from accounts.utils import (
     send_forgot_password_email,
     send_password_reset_success_email,
     send_account_created_by_admin_email,
+    generate_temp_password,
 )
 from dhowapi.settings import DOMAIN
 
@@ -87,24 +88,21 @@ class BaseUserSerializer(serializers.ModelSerializer):
 class DhowManagerSerializer(BaseUserSerializer):
     """
     Dhow Manager Serializer
-    - As this is an internal management operation, we need to send an email for the manager to activate their account.
-    - Which means that a staff or superuser should be the one to create a dhow manager.
     """
     password = serializers.CharField(
         required=False, write_only=True, allow_blank=True, allow_null=True
     )
 
     def create(self, validated_data):
+        # Generate temporary password
+        temp_password = generate_temp_password()
+        validated_data["password"] = temp_password
+
         user = self.create_user(validated_data, "is_dhow_manager")
         user.save()
 
-        token_generator = PasswordResetTokenGenerator()
-        token = token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        activation_link = f"{DOMAIN}/activate/{uid}/{token}"
-        # send activation link
-        
-        send_account_created_by_admin_email(user, activation_link)
+        # Send temporary password via email
+        send_account_created_by_admin_email(user, temp_password)
 
         return user
 
@@ -126,15 +124,15 @@ class AgentUserSerializer(BaseUserSerializer):
         required=False, write_only=True, allow_blank=True, allow_null=True
     )
     def create(self, validated_data):
+        # Generate temporary password
+        temp_password = generate_temp_password()
+        validated_data["password"] = temp_password
+
         user = self.create_user(validated_data, "is_agent")
         user.save()
-        token_generator = PasswordResetTokenGenerator()
-        token = token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        activation_link = f"{DOMAIN}/activate/{uid}/{token}"
-        # send activation link
-        
-        send_account_created_by_admin_email(user, activation_link)
+
+        # Send temporary password via email
+        send_account_created_by_admin_email(user, temp_password)
 
         return user
 

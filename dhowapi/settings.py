@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django_filters",
     "corsheaders",
     "cloudinary",
+    "django_q",
     # Local apps
     "accounts",
     "dhow",
@@ -196,3 +197,14 @@ MPESA_SHORTCODE = config("MPESA_SHORTCODE")
 MPESA_PASSKEY = config("MPESA_PASSKEY")
 MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL")
 MPESA_API_URL = config("MPESA_API_URL")
+
+# Django Q settings
+Q_CLUSTER = {
+    "name": "dhowapi",
+    "workers": 4,
+    "timeout": 90,
+    "retry": 120,
+    "queue_limit": 50,
+    "bulk": 10,
+    "orm": "default",  # Use Django ORM as broker
+}
