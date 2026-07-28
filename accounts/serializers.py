@@ -34,6 +34,9 @@ class BaseUserSerializer(serializers.ModelSerializer):
         max_length=128,
         min_length=5,
         write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
         validators=[
             validate_password_digit,
             validate_password_uppercase,
@@ -83,6 +86,18 @@ class BaseUserSerializer(serializers.ModelSerializer):
         user.save()
         # send_welcome_email(user)
         return user
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing User instance, hashing the password if it changed.
+        """
+        password = validated_data.pop("password", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 
 class DhowManagerSerializer(BaseUserSerializer):
