@@ -25,6 +25,18 @@ def generate_user_number():
     return f"DHOW{year}{random_number}"
 
 
+def generate_temp_password(length=12):
+    uppercase = secrets.choice(string.ascii_uppercase)
+    lowercase = secrets.choice(string.ascii_lowercase)
+    digit = secrets.choice(string.digits)
+    symbol = secrets.choice("!@#$%^&*")
+    all_chars = string.ascii_letters + string.digits + "!@#$%^&*"
+    remaining = [secrets.choice(all_chars) for _ in range(length - 4)]
+    password_list = [uppercase, lowercase, digit, symbol] + remaining
+    secrets.SystemRandom().shuffle(password_list)
+    return "".join(password_list)
+
+
 # welcome email
 def send_welcome_email(user):
     """
@@ -113,20 +125,21 @@ def send_password_reset_success_email(user):
         return None
 
 
-# dhow manager activation link
-def send_account_created_by_admin_email(user, activation_link=None):
+# welcome / temporary password email
+def send_account_created_by_admin_email(user, temp_password):
     email_body = render_to_string(
         "account_activation_email.html",
         {
             "user": user,
-            "activation_link": activation_link,
+            "temp_password": temp_password,
+            "domain": DOMAIN,
             "current_year": datetime.now().year,
         },
     )
     params = {
         "from": "Dhow Onboarding <dhow-onboarding@corbantechnologies.org>",
         "to": [user.email],
-        "subject": "Activate Your Tamarind Dhow Account",
+        "subject": "Welcome to Tamarind Dhow - Account Details",
         "html": email_body,
     }
     try:
