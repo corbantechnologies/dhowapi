@@ -79,6 +79,11 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
     def __str__(self):
         return f"{self.dhow.name} - {self.date} {self.get_meal_type_display()} ({self.get_status_display()})"
 
+    def save(self, *args, **kwargs):
+        if self.status in ["completed", "cancelled"]:
+            self.is_open = False
+        super().save(*args, **kwargs)
+
     @property
     def current_pax_count(self):
         # Calculate total confirmed/pending guests booked on this schedule

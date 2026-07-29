@@ -161,10 +161,18 @@ class SchedulePublicManifestView(APIView):
                     "status": g.status,
                 })
 
+            primary_guest = b.booking_guests.filter(is_primary=True).first()
+            if primary_guest:
+                booked_by_name = f"{primary_guest.first_name} {primary_guest.last_name}"
+            elif b.booked_by:
+                booked_by_name = b.booked_by.get_full_name() or b.booked_by.username
+            else:
+                booked_by_name = "Walk-In Guest"
+
             manifest_data.append({
                 "id": b.id,
                 "reference": b.reference,
-                "booked_by_name": b.booked_by_name or "Walk-In Guest",
+                "booked_by_name": booked_by_name,
                 "party_size": b.party_size,
                 "adult_count": b.adult_count,
                 "child_count": b.child_count,
@@ -187,3 +195,47 @@ class SchedulePublicManifestView(APIView):
             "manifest": manifest_data
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class SchedulePDFDownloadView(APIView):
+    permission_classes = []  # Public download link
+
+    def get(self, request, reference):
+        from django.http import HttpResponse
+        from decouple import config
+        from playwright.sync_api import sync_playwright
+
+        schedule = get_object_or_404(Schedule, reference=reference)
+
+        # Get front-end DOMAIN or default to localhost
+        frontend_domain = config("DOMAIN", default="http://localhost:3000")
+        manifest_url = f"{frontend_domain}/manifest/{reference}"
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-setuid-sandbox"]
+                )
+                page = browser.new_page()
+                page.goto(manifest_url, wait_until="networkidle")
+                
+                # Wait for loading to finish and print button to render
+                page.wait_for_selector('button:has-text("Print Manifest")', timeout=10000)
+                
+                pdf_bytes = page.pdf(
+                    format="A4",
+                    print_background=True,
+                    margin={"top": "0.4in", "right": "0.4in", "bottom": "0.4in", "left": "0.4in"}
+                )
+                browser.close()
+
+            response = HttpResponse(pdf_bytes, content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="sailing-manifest-{reference}.pdf"'
+            return response
+
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to generate PDF manifest via Playwright: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
