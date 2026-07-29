@@ -143,6 +143,7 @@ class BookingBulkCreateView(APIView):
                             payment_method=payment_method,
                             status="completed",
                             phone_number=data.get("primary_guest_phone") or None,
+                            transaction_ref=data.get("transaction_ref") or None,
                             notes=notes
                         )
                         
