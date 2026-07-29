@@ -8,6 +8,7 @@ from schedule.views import (
     ScheduleCancelView,
     SchedulePublicManifestView,
     SchedulePDFDownloadView,
+    ScheduleShareView,
 )
 
 app_name = "schedule"
@@ -17,6 +18,7 @@ urlpatterns = [
     path("<str:reference>/", ScheduleDetailView.as_view(), name="schedule_detail"),
     path("<str:reference>/public-manifest/", SchedulePublicManifestView.as_view(), name="schedule_public_manifest"),
     path("<str:reference>/download-pdf/", SchedulePDFDownloadView.as_view(), name="schedule_download_pdf"),
+    path("<str:reference>/share/", ScheduleShareView.as_view(), name="schedule_share"),
     path("<str:reference>/open/", ScheduleOpenView.as_view(), name="schedule_open"),
     path("<str:reference>/close/", ScheduleCloseView.as_view(), name="schedule_close"),
     path("<str:reference>/confirm/", ScheduleConfirmView.as_view(), name="schedule_confirm"),
