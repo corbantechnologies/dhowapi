@@ -2,12 +2,22 @@ import datetime
 from rest_framework import serializers
 from booking.models import Booking
 from booking_guest.serializers import BookingGuestSerializer
+from booking_addon.serializers import BookingAddOnSerializer
+
+
+class BookingAddOnWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        from booking_addon.models import BookingAddOn
+        model = BookingAddOn
+        fields = ("addon", "quantity")
 
 
 class BookingSerializer(serializers.ModelSerializer):
     booked_by_email = serializers.SerializerMethodField()
     booked_by_name = serializers.SerializerMethodField()
     booking_guests = BookingGuestSerializer(many=True, read_only=True)
+    booking_addons = BookingAddOnSerializer(many=True, read_only=True)
+    addons = BookingAddOnWriteSerializer(many=True, write_only=True, required=False)
     schedule_date = serializers.ReadOnlyField(source="schedule.date")
     schedule_meal_type = serializers.ReadOnlyField(source="schedule.get_meal_type_display")
     package_name = serializers.ReadOnlyField(source="package.name")
@@ -53,11 +63,17 @@ class BookingSerializer(serializers.ModelSerializer):
             "table",
             "table_number",
             "total_amount",
+            "custom_price_per_person",
+            "custom_price_per_child",
+            "discount_type",
+            "discount_value",
             "discount_amount",
             "discount_reason",
             "total_paid",
             "outstanding_balance",
             "booking_guests",
+            "booking_addons",
+            "addons",
             "primary_guest_name",
             "primary_guest_email",
             "primary_guest_phone",
@@ -74,6 +90,7 @@ class BookingSerializer(serializers.ModelSerializer):
         primary_name = validated_data.pop("primary_guest_name", "")
         primary_email = validated_data.pop("primary_guest_email", "")
         primary_phone = validated_data.pop("primary_guest_phone", "")
+        addons_data = validated_data.pop("addons", [])
 
         booking = Booking(**validated_data)
         booking._primary_guest_name = primary_name
@@ -81,7 +98,56 @@ class BookingSerializer(serializers.ModelSerializer):
         booking._primary_guest_phone = primary_phone
         booking.save()
 
+        # Create nested addons
+        from booking_addon.models import BookingAddOn
+        for addon_item in addons_data:
+            addon_obj = addon_item["addon"]
+            qty = addon_item.get("quantity", 1)
+            BookingAddOn.objects.create(
+                booking=booking,
+                addon=addon_obj,
+                quantity=qty,
+                unit_price=addon_obj.price
+            )
+
         return booking
+
+    def update(self, instance, validated_data):
+        addons_data = validated_data.pop("addons", None)
+        primary_name = validated_data.pop("primary_guest_name", None)
+        primary_email = validated_data.pop("primary_guest_email", None)
+        primary_phone = validated_data.pop("primary_guest_phone", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # If primary guest fields were supplied in update (e.g. for walk-in form modifications)
+        primary_guest = instance.booking_guests.filter(is_primary=True).first()
+        if primary_guest and (primary_name or primary_email or primary_phone):
+            if primary_name:
+                name_parts = primary_name.strip().split(" ")
+                primary_guest.first_name = name_parts[0] if name_parts else "Walk-In"
+                primary_guest.last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Guest"
+            if primary_email is not None:
+                primary_guest.email = primary_email
+            if primary_phone is not None:
+                primary_guest.phone = primary_phone
+            primary_guest.save()
+
+        if addons_data is not None:
+            from booking_addon.models import BookingAddOn
+            instance.booking_addons.all().delete()
+            for addon_item in addons_data:
+                addon_obj = addon_item["addon"]
+                qty = addon_item.get("quantity", 1)
+                BookingAddOn.objects.create(
+                    booking=instance,
+                    addon=addon_obj,
+                    quantity=qty,
+                    unit_price=addon_obj.price
+                )
+        return instance
 
     def validate(self, attrs):
         schedule = attrs.get("schedule")
@@ -136,5 +202,6 @@ class BookingSerializer(serializers.ModelSerializer):
         if tables.exists():
             return ", ".join([t.table_number for t in tables])
         return ""
+
 
 

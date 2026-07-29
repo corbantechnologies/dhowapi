@@ -262,7 +262,22 @@
                     {% endif %}
                 </td>
                 <td class="special-notes">
-                    {{ item.special_requests|default:"-" }}
+                    {% if item.special_requests %}
+                    <div style="font-weight: 500;">{{ item.special_requests }}</div>
+                    {% endif %}
+                    {% if item.addons_list %}
+                    <div style="margin-top: 5px; color: #1e293b; font-weight: 700; font-size: 9.5px;">
+                        Add-ons:
+                        <ul style="margin: 2px 0 0 12px; padding: 0; list-style-type: disc;">
+                            {% for addon in item.addons_list %}
+                            <li>{{ addon.name }} (x{{ addon.quantity }})</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if not item.special_requests and not item.addons_list %}
+                    -
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

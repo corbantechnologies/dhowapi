@@ -83,6 +83,8 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
         if self.status in ["completed", "cancelled"]:
             self.is_open = False
         super().save(*args, **kwargs)
+        if self.status == "completed":
+            self.bookings.filter(status__in=["pending", "confirmed"]).update(status="completed")
 
     @property
     def current_pax_count(self):

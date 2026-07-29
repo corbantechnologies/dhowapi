@@ -70,6 +70,23 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
     special_requests = models.TextField(
         blank=True, null=True, help_text="e.g. Birthday setup, Vegan meal"
     )
+    custom_price_per_person = models.DecimalField(
+        max_digits=12, decimal_places=2, blank=True, null=True,
+        help_text="Override standard adult price per person"
+    )
+    custom_price_per_child = models.DecimalField(
+        max_digits=12, decimal_places=2, blank=True, null=True,
+        help_text="Override standard child price per person"
+    )
+    discount_type = models.CharField(
+        max_length=20,
+        choices=(("amount", "Flat Amount"), ("percentage", "Percentage")),
+        default="amount"
+    )
+    discount_value = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00, blank=True,
+        help_text="Percentage value or flat KES amount"
+    )
     discount_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00, blank=True,
         help_text="Discount amount in KES applied to the booking"
@@ -102,6 +119,29 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         ordering = ["-created_at"]
 
     def save(self, *args, **kwargs):
+        from decimal import Decimal
+        unit_price = (
+            self.schedule.exclusive_flat_fee
+            if self.is_exclusive
+            else (self.custom_price_per_person or self.schedule.price_per_person or (self.package.base_price if self.package else 0))
+        )
+        child_unit_price = (
+            0.00
+            if self.is_exclusive
+            else (self.custom_price_per_child or getattr(self.schedule, "price_per_child", 0.00))
+        )
+        base_total = (
+            unit_price
+            if self.is_exclusive
+            else ((unit_price * self.adult_count) + (child_unit_price * self.child_count))
+        )
+        
+        if self.discount_type == "percentage":
+            val = self.discount_value or Decimal("0.00")
+            self.discount_amount = Decimal(str(base_total)) * (val / Decimal("100.00"))
+        else:
+            self.discount_amount = self.discount_value or Decimal("0.00")
+
         is_new = self._state.adding
         super().save(*args, **kwargs)
         if is_new:
@@ -154,12 +194,12 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         unit_price = (
             self.schedule.exclusive_flat_fee
             if self.is_exclusive
-            else (self.schedule.price_per_person or (self.package.base_price if self.package else 0))
+            else (self.custom_price_per_person or self.schedule.price_per_person or (self.package.base_price if self.package else 0))
         )
         child_unit_price = (
             0.00
             if self.is_exclusive
-            else (getattr(self.schedule, "price_per_child", 0.00))
+            else (self.custom_price_per_child or getattr(self.schedule, "price_per_child", 0.00))
         )
         base_total = (
             unit_price

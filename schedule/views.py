@@ -187,6 +187,14 @@ class SchedulePublicManifestView(APIView):
             else:
                 booked_by_name = "Walk-In Guest"
 
+            addons_data = []
+            for ba in b.booking_addons.all():
+                addons_data.append({
+                    "addon_name": ba.addon.name,
+                    "quantity": ba.quantity,
+                    "total_price": float(ba.total_price),
+                })
+
             manifest_data.append({
                 "id": b.id,
                 "reference": b.reference,
@@ -198,6 +206,7 @@ class SchedulePublicManifestView(APIView):
                 "special_requests": b.special_requests or "",
                 "status": b.status,
                 "booking_guests": guests_data,
+                "booking_addons": addons_data,
             })
 
         data = {
@@ -257,6 +266,13 @@ class SchedulePDFDownloadView(APIView):
                 email = ""
                 phone = ""
 
+            addons_list = []
+            for ba in b.booking_addons.all():
+                addons_list.append({
+                    "name": ba.addon.name,
+                    "quantity": ba.quantity,
+                })
+
             manifest_list.append({
                 "reference": b.reference,
                 "booked_by_name": booked_by_name,
@@ -269,6 +285,7 @@ class SchedulePDFDownloadView(APIView):
                 "special_requests": b.special_requests or "",
                 "status": b.status,
                 "status_display": b.get_status_display(),
+                "addons_list": addons_list,
             })
 
         # Render HTML template natively on the backend
