@@ -6,10 +6,14 @@ from booking_addon.serializers import BookingAddOnSerializer
 
 
 class BookingAddOnWriteSerializer(serializers.ModelSerializer):
+    unit_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True
+    )
+
     class Meta:
         from booking_addon.models import BookingAddOn
         model = BookingAddOn
-        fields = ("addon", "quantity")
+        fields = ("addon", "quantity", "unit_price")
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -103,11 +107,12 @@ class BookingSerializer(serializers.ModelSerializer):
         for addon_item in addons_data:
             addon_obj = addon_item["addon"]
             qty = addon_item.get("quantity", 1)
+            u_price = addon_item.get("unit_price") or addon_obj.price
             BookingAddOn.objects.create(
                 booking=booking,
                 addon=addon_obj,
                 quantity=qty,
-                unit_price=addon_obj.price
+                unit_price=u_price
             )
 
         return booking
@@ -141,11 +146,12 @@ class BookingSerializer(serializers.ModelSerializer):
             for addon_item in addons_data:
                 addon_obj = addon_item["addon"]
                 qty = addon_item.get("quantity", 1)
+                u_price = addon_item.get("unit_price") or addon_obj.price
                 BookingAddOn.objects.create(
                     booking=instance,
                     addon=addon_obj,
                     quantity=qty,
-                    unit_price=addon_obj.price
+                    unit_price=u_price
                 )
         return instance
 
