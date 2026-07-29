@@ -232,8 +232,10 @@ class SchedulePDFDownloadView(APIView):
         from django.template.loader import render_to_string
         from playwright.sync_api import sync_playwright
         import traceback
+        import os
 
         try:
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/app/.cache/ms-playwright"
             schedule = get_object_or_404(Schedule, reference=reference)
 
             # Secure access check for shared token link
