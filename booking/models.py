@@ -70,6 +70,14 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
     special_requests = models.TextField(
         blank=True, null=True, help_text="e.g. Birthday setup, Vegan meal"
     )
+    discount_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00, blank=True,
+        help_text="Discount amount in KES applied to the booking"
+    )
+    discount_reason = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="Reason for the discount"
+    )
     internal_notes = models.TextField(
         blank=True, null=True, help_text="Manager or agent internal notes"
     )
@@ -141,6 +149,7 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
 
     @property
     def total_amount(self):
+        from decimal import Decimal
         # Calculate base price + add-ons
         unit_price = (
             self.schedule.exclusive_flat_fee
@@ -158,4 +167,23 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
             else ((unit_price * self.adult_count) + (child_unit_price * self.child_count))
         )
         addons_total = sum([addon.total_price for addon in self.booking_addons.all()])
-        return base_total + addons_total
+        
+        base_total_dec = Decimal(str(base_total))
+        addons_total_dec = Decimal(str(addons_total)) if addons_total else Decimal("0.00")
+        discount_dec = Decimal(str(self.discount_amount)) if self.discount_amount else Decimal("0.00")
+        
+        return max(Decimal("0.00"), base_total_dec + addons_total_dec - discount_dec)
+
+    @property
+    def total_paid(self):
+        from decimal import Decimal
+        total = self.payments.filter(status="completed").aggregate(
+            total=models.Sum('amount')
+        )['total']
+        return Decimal(str(total)) if total is not None else Decimal("0.00")
+
+    @property
+    def outstanding_balance(self):
+        from decimal import Decimal
+        return max(Decimal("0.00"), self.total_amount - self.total_paid)
+

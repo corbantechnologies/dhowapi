@@ -19,10 +19,11 @@ class BookingSerializer(serializers.ModelSerializer):
         source="get_status_display", read_only=True
     )
 
-    # Optional nested guest fields for bulk walk-in/creation optimization
     primary_guest_name = serializers.CharField(write_only=True, required=False)
     primary_guest_email = serializers.EmailField(write_only=True, required=False, allow_blank=True, allow_null=True)
     primary_guest_phone = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    outstanding_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
         model = Booking
@@ -52,6 +53,10 @@ class BookingSerializer(serializers.ModelSerializer):
             "table",
             "table_number",
             "total_amount",
+            "discount_amount",
+            "discount_reason",
+            "total_paid",
+            "outstanding_balance",
             "booking_guests",
             "primary_guest_name",
             "primary_guest_email",
@@ -60,7 +65,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "reference", "created_by", "created_at", "updated_at")
+        read_only_fields = ("id", "reference", "created_by", "created_at", "updated_at", "total_paid", "outstanding_balance")
         extra_kwargs = {
             "booked_by": {"required": False, "allow_null": True},
         }
