@@ -182,6 +182,11 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
                     is_primary=False,
                     status="pending",
                 )
+        else:
+            if self.status == "completed":
+                self.booking_guests.filter(status="pending").update(status="checked_in")
+            elif self.status == "no_show":
+                self.booking_guests.filter(status="pending").update(status="no_show")
 
     def __str__(self):
         email = self.booked_by.email if self.booked_by else "No Owner"

@@ -85,6 +85,11 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
         super().save(*args, **kwargs)
         if self.status == "completed":
             self.bookings.filter(status__in=["pending", "confirmed"]).update(status="completed")
+            from booking_guest.models import BookingGuest
+            BookingGuest.objects.filter(
+                booking__schedule=self,
+                status="pending"
+            ).update(status="checked_in")
 
     @property
     def current_pax_count(self):
