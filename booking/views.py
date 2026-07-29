@@ -89,3 +89,71 @@ class BookingAssignTableView(APIView):
         booking.save()
         serializer = BookingSerializer(booking)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BookingBulkCreateView(APIView):
+    permission_classes = [IsAuthenticated, IsDhowManager]
+
+    def post(self, request):
+        from django.db import transaction
+        from payment.models import Payment
+        
+        bookings_data = request.data.get("bookings", [])
+        if not bookings_data or not isinstance(bookings_data, list):
+            return Response(
+                {"detail": "Please provide a non-empty 'bookings' list."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        created_bookings = []
+        try:
+            with transaction.atomic():
+                for index, data in enumerate(bookings_data):
+                    serializer = BookingSerializer(data=data, context={"request": request})
+                    if not serializer.is_valid():
+                        # Collect and structure the validation errors
+                        err_msgs = []
+                        for field, errors in serializer.errors.items():
+                            err_msgs.append(f"{field}: {', '.join(errors) if isinstance(errors, list) else str(errors)}")
+                        return Response(
+                            {"detail": f"Row {index + 1} validation failed: {'; '.join(err_msgs)}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                        
+                    # Save the booking (sets booked_by=None for walk-ins)
+                    booking = serializer.save(booked_by=None, created_by=request.user)
+                    
+                    payment_method = data.get("payment_method")
+                    is_partial_payment = data.get("is_partial_payment", False)
+                    partial_paid_amount = data.get("partial_paid_amount", 0)
+                    
+                    if payment_method and payment_method != "unpaid":
+                        pay_amount = float(partial_paid_amount) if is_partial_payment else float(booking.total_amount)
+                        
+                        notes = (
+                            f"Walk-in partial deposit collected by manager via {payment_method.upper()}. "
+                            f"Remaining balance: KES {(float(booking.total_amount) - pay_amount):,.2f}"
+                            if is_partial_payment else
+                            f"Walk-in payment collected by manager via {payment_method.upper()}"
+                        )
+                        
+                        Payment.objects.create(
+                            booking=booking,
+                            amount=pay_amount,
+                            payment_method=payment_method,
+                            status="completed",
+                            phone_number=data.get("primary_guest_phone") or None,
+                            notes=notes
+                        )
+                        
+                    created_bookings.append(booking)
+            
+            response_serializer = BookingSerializer(created_bookings, many=True)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to bulk register bookings: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
