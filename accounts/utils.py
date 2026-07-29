@@ -51,7 +51,7 @@ def send_welcome_email(user):
             },
         )
         params = {
-            "from": "Dhow Onboarding <dhow-onboarding@corbantechnologies.org>",
+            "from": "Dhow Onboarding <dhow-onboarding@tamarind.co.ke>",
             "to": [user.email],
             "subject": "Welcome to Dhow",
             "html": email_body,
@@ -79,7 +79,7 @@ def send_forgot_password_email(user, code):
             },
         )
         params = {
-            "from": "Dhow Security <dhow-security@corbantechnologies.org>",
+            "from": "Dhow Security <dhow-security@tamarind.co.ke>",
             "to": [user.email],
             "subject": "Reset Your Dhow Password",
             "html": email_body,
@@ -108,7 +108,7 @@ def send_password_reset_success_email(user):
             },
         )
         params = {
-            "from": "Dhow Security <dhow-security@corbantechnologies.org>",
+            "from": "Dhow Security <dhow-security@tamarind.co.ke>",
             "to": [user.email],
             "subject": "Password Reset Successful - Dhow",
             "html": email_body,
@@ -137,7 +137,7 @@ def send_account_created_by_admin_email(user, temp_password):
         },
     )
     params = {
-        "from": "Dhow Onboarding <dhow-onboarding@corbantechnologies.org>",
+        "from": "Dhow Onboarding <dhow-onboarding@tamarind.co.ke>",
         "to": [user.email],
         "subject": "Welcome to Tamarind Dhow - Account Details",
         "html": email_body,

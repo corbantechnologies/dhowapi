@@ -82,6 +82,7 @@ CORS_ALLOW_HEADERS = default_headers + (
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+    "x-manifest-token",
 )
 
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS").split(",")
@@ -179,6 +180,7 @@ REST_FRAMEWORK = {
 
 # Email settings
 DOMAIN = config("DOMAIN")
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
 # Resend
 RESEND_API_KEY = config("RESEND_API_KEY")

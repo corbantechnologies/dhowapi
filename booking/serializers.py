@@ -70,26 +70,11 @@ class BookingSerializer(serializers.ModelSerializer):
         primary_email = validated_data.pop("primary_guest_email", "")
         primary_phone = validated_data.pop("primary_guest_phone", "")
 
-        booking = super().create(validated_data)
-
-        # Create primary guest immediately so that to_representation is pre-populated
-        if primary_name:
-            name_parts = primary_name.strip().split(" ")
-            first_name = name_parts[0] if name_parts else "Walk-In"
-            last_name = name_parts[1] if len(name_parts) > 1 else "Guest"
-            if len(name_parts) > 2:
-                last_name = " ".join(name_parts[1:])
-
-            from booking_guest.models import BookingGuest
-            BookingGuest.objects.create(
-                booking=booking,
-                first_name=first_name,
-                last_name=last_name,
-                email=primary_email or None,
-                phone=primary_phone or None,
-                is_primary=True,
-                status="pending"
-            )
+        booking = Booking(**validated_data)
+        booking._primary_guest_name = primary_name
+        booking._primary_guest_email = primary_email
+        booking._primary_guest_phone = primary_phone
+        booking.save()
 
         return booking
 

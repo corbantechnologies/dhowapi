@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Sailing Manifest - {{ schedule.dhow.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;850&display=swap');
+        
+        @page {
+            size: A4 portrait;
+            margin: 0.4in;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            -webkit-print-color-adjust: exact;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #b45309;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .logo-section h1 {
+            font-size: 20px;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #78350f;
+            margin: 0 0 4px 0;
+        }
+
+        .logo-section p {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .table-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th {
+            background-color: #78350f;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            padding: 10px 12px;
+            border: 1px solid #78350f;
+        }
+
+        td {
+            font-size: 11px;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            border-left: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+
+        .guest-name {
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+
+        .guest-contact {
+            font-size: 9px;
+            color: #64748b;
+        }
+
+        .ref-code {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 11px;
+            color: #0369a1;
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 750;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .tag-status-pending {
+            background-color: #ffedd5;
+            color: #c2410c;
+        }
+
+        .tag-status-confirmed {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .tag-status-completed {
+            background-color: #f1f5f9;
+            color: #475569;
+        }
+
+        .special-notes {
+            font-style: italic;
+            color: #ef4444;
+            font-size: 10px;
+        }
+
+        .page-break-avoid {
+            page-break-inside: avoid;
+        }
+
+        .footer {
+            margin-top: 30px;
+            border-top: 1px dashed #cbd5e1;
+            padding-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #b45309; padding-bottom: 15px; margin-bottom: 20px;">
+        <div class="logo-section">
+            <h1>Tamarind Dhow Mombasa</h1>
+            <p>Official Passenger Boarding Manifest</p>
+        </div>
+        <div style="text-align: right;">
+            <p style="font-size: 9px; font-weight: bold; color: #64748b; margin: 0; text-transform: uppercase;">Generated On</p>
+            <p style="font-size: 11px; font-weight: 600; color: #0f172a; margin: 4px 0 0 0;">{% now "Y-m-d H:i" %}</p>
+        </div>
+    </div>
+
+    <div class="meta-grid">
+        <div class="meta-item">
+            <span class="meta-label">Vessel / Dhow</span>
+            <span class="meta-value">{{ schedule.dhow.name }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Sailing Date</span>
+            <span class="meta-value">{{ schedule.date|date:"Y-m-d" }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Cruise Type</span>
+            <span class="meta-value">{{ schedule.get_meal_type_display }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Timing</span>
+            <span class="meta-value">{{ schedule.departure_time|time:"H:i" }} - {{ schedule.return_time|time:"H:i" }}</span>
+        </div>
+    </div>
+
+    <div class="table-title">Passenger Details (Total Booked: {{ total_pax }} | Bookings: {{ bookings|length }})</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 30%;">Guest / Contact</th>
+                <th style="width: 15%;">Reference</th>
+                <th style="width: 15%;">Seats (Pax)</th>
+                <th style="width: 15%;">Seating (Table)</th>
+                <th style="width: 20%;">Special Requests</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in manifest_list %}
+            <tr class="page-break-avoid">
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    <div class="guest-name">{{ item.booked_by_name }}</div>
+                    {% if item.email or item.phone %}
+                    <div class="guest-contact">
+                        {% if item.email %}{{ item.email }}{% endif %}
+                        {% if item.email and item.phone %} • {% endif %}
+                        {% if item.phone %}{{ item.phone }}{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="ref-code">{{ item.reference }}</div>
+                    <span class="tag tag-status-{{ item.status }}">
+                        {{ item.status_display }}
+                    </span>
+                </td>
+                <td>
+                    <strong>{{ item.party_size }} Pax</strong><br/>
+                    <span style="font-size: 9px; color: #64748b;">
+                        ({{ item.adult_count }} A / {{ item.child_count }} C)
+                    </span>
+                </td>
+                <td>
+                    {% if item.table_number %}
+                    <span style="font-size: 12px; font-weight: 700; color: #047857;">{{ item.table_number }}</span>
+                    {% else %}
+                    <span style="color: #94a3b8; font-style: italic;">Not Assigned</span>
+                    {% endif %}
+                </td>
+                <td class="special-notes">
+                    {{ item.special_requests|default:"-" }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: #94a3b8; padding: 20px;">
+                    No bookings recorded for this schedule.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <span>Tamarind Dhow Booking System • Confidential Crew Document</span>
+        <span>Page 1 of 1</span>
+    </div>
+</body>
+</html>

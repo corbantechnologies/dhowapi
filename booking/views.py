@@ -23,8 +23,10 @@ class BookingListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        # If user is guest/agent, booked_by is self. If manager doing walk-in, booked_by can be passed or default to self.
-        booked_by = serializer.validated_data.get("booked_by", user)
+        if user.is_dhow_manager or user.is_staff or user.is_superuser:
+            booked_by = serializer.validated_data.get("booked_by", None)
+        else:
+            booked_by = serializer.validated_data.get("booked_by", user)
         serializer.save(booked_by=booked_by, created_by=user)
 
 
