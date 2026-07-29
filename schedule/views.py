@@ -202,14 +202,59 @@ class SchedulePDFDownloadView(APIView):
 
     def get(self, request, reference):
         from django.http import HttpResponse
-        from decouple import config
+        from django.template.loader import render_to_string
         from playwright.sync_api import sync_playwright
 
         schedule = get_object_or_404(Schedule, reference=reference)
 
-        # Get front-end DOMAIN or default to localhost
-        frontend_domain = config("DOMAIN", default="http://localhost:3000")
-        manifest_url = f"{frontend_domain}/manifest/{reference}"
+        # Get all confirmed or completed/pending bookings for this schedule
+        bookings = schedule.bookings.filter(
+            status__in=["confirmed", "completed", "pending", "no_show"]
+        ).order_by("created_at")
+
+        manifest_list = []
+        for b in bookings:
+            # Table seating allocation
+            tables = b.assigned_tables.all()
+            table_number = ", ".join([t.table_number for t in tables]) if tables.exists() else ""
+
+            # Resolve primary guest details
+            primary_guest = b.booking_guests.filter(is_primary=True).first()
+            if primary_guest:
+                booked_by_name = f"{primary_guest.first_name} {primary_guest.last_name}"
+                email = primary_guest.email or ""
+                phone = primary_guest.phone or ""
+            elif b.booked_by:
+                booked_by_name = b.booked_by.get_full_name() or b.booked_by.username
+                email = b.booked_by.email
+                phone = getattr(b.booked_by, "phone_number", "")
+            else:
+                booked_by_name = "Walk-In Guest"
+                email = ""
+                phone = ""
+
+            manifest_list.append({
+                "reference": b.reference,
+                "booked_by_name": booked_by_name,
+                "email": email,
+                "phone": phone,
+                "party_size": b.party_size,
+                "adult_count": b.adult_count,
+                "child_count": b.child_count,
+                "table_number": table_number,
+                "special_requests": b.special_requests or "",
+                "status": b.status,
+                "status_display": b.get_status_display(),
+            })
+
+        # Render HTML template natively on the backend
+        context = {
+            "schedule": schedule,
+            "bookings": bookings,
+            "manifest_list": manifest_list,
+            "total_pax": sum(b.party_size for b in bookings),
+        }
+        html_content = render_to_string("schedule/pdf_manifest.html", context)
 
         try:
             with sync_playwright() as p:
@@ -218,10 +263,9 @@ class SchedulePDFDownloadView(APIView):
                     args=["--no-sandbox", "--disable-setuid-sandbox"]
                 )
                 page = browser.new_page()
-                page.goto(manifest_url, wait_until="networkidle")
                 
-                # Wait for loading to finish and print button to render
-                page.wait_for_selector('button:has-text("Print Manifest")', timeout=10000)
+                # Directly load HTML content on the browser page
+                page.set_content(html_content, wait_until="networkidle")
                 
                 pdf_bytes = page.pdf(
                     format="A4",
