@@ -235,7 +235,6 @@ class SchedulePDFDownloadView(APIView):
         import os
 
         try:
-            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/app/.cache/ms-playwright"
             schedule = get_object_or_404(Schedule, reference=reference)
 
             # Secure access check for shared token link

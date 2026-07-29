@@ -11,17 +11,25 @@ class HasManifestAccessToken(BasePermission):
             return False
 
         try:
-            # Token signature expires after 24 hours (86400 seconds)
-            payload = signing.loads(token, salt="manifest-share", max_age=86400)
+            # Load without max_age, signature verification still holds
+            payload = signing.loads(token, salt="manifest-share")
             schedule_ref = payload.get("schedule_ref")
             if not schedule_ref:
+                return False
+            
+            # Fetch schedule to check date
+            schedule = Schedule.objects.filter(reference=schedule_ref).first()
+            if not schedule:
+                return False
+            
+            # Check if sailing date has passed
+            from datetime import date
+            if schedule.date < date.today():
                 return False
             
             # Save the validated reference on the request for views to use
             request.manifest_schedule_ref = schedule_ref
             return True
-        except signing.SignatureExpired:
-            return False
         except signing.BadSignature:
             return False
 
