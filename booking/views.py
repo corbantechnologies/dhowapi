@@ -12,23 +12,43 @@ from booking.serializers import BookingSerializer
 
 class BookingListCreateView(generics.ListCreateAPIView):
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated | HasManifestAccessToken]
     filterset_fields = ["schedule", "status", "booking_type", "cancellation_preference"]
     search_fields = ["reference", "booked_by__email", "booked_by__first_name", "booked_by__last_name"]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_dhow_manager or user.is_staff or user.is_superuser:
-            return Booking.objects.all()
-        return Booking.objects.filter(booked_by=user)
+        if user.is_authenticated:
+            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+                return Booking.objects.all()
+            return Booking.objects.filter(booked_by=user)
+        # Supervisor unauthenticated queryset filter
+        schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
+        if schedule_ref:
+            return Booking.objects.filter(schedule__reference=schedule_ref)
+        return Booking.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.is_dhow_manager or user.is_staff or user.is_superuser:
-            booked_by = serializer.validated_data.get("booked_by", None)
+        if user.is_authenticated:
+            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+                booked_by = serializer.validated_data.get("booked_by", None)
+            else:
+                booked_by = serializer.validated_data.get("booked_by", user)
+            serializer.save(booked_by=booked_by, created_by=user)
         else:
-            booked_by = serializer.validated_data.get("booked_by", user)
-        serializer.save(booked_by=booked_by, created_by=user)
+            # Supervisor authenticated via manifest token
+            schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
+            if not schedule_ref:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You do not have a valid manifest token.")
+            
+            schedule = serializer.validated_data.get("schedule")
+            if schedule.reference != schedule_ref:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"schedule": "You do not have permission to book for this schedule."})
+            
+            serializer.save(booked_by=None, created_by=None)
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):

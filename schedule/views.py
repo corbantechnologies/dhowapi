@@ -210,12 +210,15 @@ class SchedulePublicManifestView(APIView):
 
         data = {
             "schedule": {
+                "id": str(schedule.id),
                 "reference": schedule.reference,
                 "dhow_name": schedule.dhow.name,
                 "date": str(schedule.date),
                 "meal_type_display": schedule.get_meal_type_display(),
                 "departure_time": str(schedule.departure_time),
                 "return_time": str(schedule.return_time),
+                "price_per_person": float(schedule.price_per_person),
+                "price_per_child": float(schedule.price_per_child or 0.0),
                 "status": schedule.status,
             },
             "manifest": manifest_data
