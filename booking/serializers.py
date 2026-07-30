@@ -168,28 +168,42 @@ class BookingSerializer(serializers.ModelSerializer):
         is_exclusive = attrs.get("is_exclusive", False)
 
         if schedule:
-            if schedule.date < datetime.date.today():
-                raise serializers.ValidationError("Cannot book a sailing in the past.")
-            if not schedule.is_open:
-                raise serializers.ValidationError("Bookings are closed for this schedule.")
-            if schedule.status in ["cancelled", "completed"]:
-                raise serializers.ValidationError(
-                    f"Cannot book a schedule that is {schedule.status}."
-                )
-            if schedule.is_exclusive:
-                raise serializers.ValidationError(
-                    "This schedule is already exclusively chartered."
-                )
-            if is_exclusive and schedule.bookings.filter(status__in=["pending", "confirmed"]).exists():
-                raise serializers.ValidationError(
-                    "Cannot book exclusively: this schedule already has existing bookings."
-                )
-            if not is_exclusive and schedule.available_capacity < party_size:
-                raise serializers.ValidationError(
-                    f"Requested party size ({party_size}) exceeds available capacity ({schedule.available_capacity})."
-                )
+            is_schedule_changing = True
+            if self.instance and self.instance.schedule == schedule:
+                is_schedule_changing = False
+
+            if is_schedule_changing:
+                if schedule.date < datetime.date.today():
+                    raise serializers.ValidationError("Cannot book a sailing in the past.")
+                if not schedule.is_open:
+                    raise serializers.ValidationError("Bookings are closed for this schedule.")
+                if schedule.status in ["cancelled", "completed"]:
+                    raise serializers.ValidationError(
+                        f"Cannot book a schedule that is {schedule.status}."
+                    )
+                if schedule.is_exclusive:
+                    raise serializers.ValidationError(
+                        "This schedule is already exclusively chartered."
+                    )
+                if is_exclusive and schedule.bookings.filter(status__in=["pending", "confirmed"]).exists():
+                    raise serializers.ValidationError(
+                        "Cannot book exclusively: this schedule already has existing bookings."
+                    )
+                if not is_exclusive and schedule.available_capacity < party_size:
+                    raise serializers.ValidationError(
+                        f"Requested party size ({party_size}) exceeds available capacity ({schedule.available_capacity})."
+                    )
+            else:
+                # Even if schedule is the same, if party size increases, check capacity
+                if not is_exclusive:
+                    capacity_change = party_size - self.instance.party_size
+                    if capacity_change > 0 and schedule.available_capacity < capacity_change:
+                        raise serializers.ValidationError(
+                            f"Increasing party size by {capacity_change} exceeds available capacity ({schedule.available_capacity})."
+                        )
 
         return attrs
+
 
     def get_booked_by_name(self, obj):
         primary_guest = obj.booking_guests.filter(is_primary=True).first()

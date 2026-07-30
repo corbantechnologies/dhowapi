@@ -183,6 +183,32 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
                     status="pending",
                 )
         else:
+            # Sync passenger checklist count to party_size
+            try:
+                from booking_guest.models import BookingGuest
+                current_guests = list(self.booking_guests.all())
+                current_count = len(current_guests)
+                
+                if self.party_size > current_count:
+                    # Create more placeholders
+                    for i in range(current_count + 1, self.party_size + 1):
+                        BookingGuest.objects.create(
+                            booking=self,
+                            first_name="Guest",
+                            last_name=str(i),
+                            is_primary=False,
+                            status="pending",
+                        )
+                elif self.party_size < current_count:
+                    # Remove excess unboarded guests, starting with non-primary
+                    excess_qty = current_count - self.party_size
+                    # Filter un-checked_in guests first
+                    excess_candidates = self.booking_guests.filter(is_primary=False).exclude(status="checked_in").order_by("-id")[:excess_qty]
+                    for ec in excess_candidates:
+                        ec.delete()
+            except Exception:
+                pass
+
             if self.status == "completed":
                 # Update any still-pending guest records to checked_in
                 self.booking_guests.filter(status="pending").update(status="checked_in")
@@ -209,6 +235,7 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
                     pass
             elif self.status == "no_show":
                 self.booking_guests.filter(status="pending").update(status="no_show")
+
 
 
     def __str__(self):
