@@ -38,6 +38,7 @@ class BookingSerializer(serializers.ModelSerializer):
     primary_guest_phone = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
     total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     outstanding_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    guest_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
 
     class Meta:
         model = Booking
@@ -81,6 +82,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "primary_guest_name",
             "primary_guest_email",
             "primary_guest_phone",
+            "guest_names",
             "created_by",
             "created_at",
             "updated_at",
@@ -95,12 +97,23 @@ class BookingSerializer(serializers.ModelSerializer):
         primary_email = validated_data.pop("primary_guest_email", "")
         primary_phone = validated_data.pop("primary_guest_phone", "")
         addons_data = validated_data.pop("addons", [])
+        guest_names = validated_data.pop("guest_names", [])
 
         booking = Booking(**validated_data)
         booking._primary_guest_name = primary_name
         booking._primary_guest_email = primary_email
         booking._primary_guest_phone = primary_phone
         booking.save()
+
+        # Update other guests names if supplied
+        if guest_names:
+            other_guests = booking.booking_guests.filter(is_primary=False).order_by("id")
+            for idx, g_name in enumerate(guest_names):
+                if idx < len(other_guests) and g_name.strip():
+                    parts = g_name.strip().split(" ")
+                    other_guests[idx].first_name = parts[0] if parts else "Guest"
+                    other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    other_guests[idx].save()
 
         # Create nested addons
         from booking_addon.models import BookingAddOn
@@ -122,6 +135,7 @@ class BookingSerializer(serializers.ModelSerializer):
         primary_name = validated_data.pop("primary_guest_name", None)
         primary_email = validated_data.pop("primary_guest_email", None)
         primary_phone = validated_data.pop("primary_guest_phone", None)
+        guest_names = validated_data.pop("guest_names", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -133,12 +147,22 @@ class BookingSerializer(serializers.ModelSerializer):
             if primary_name:
                 name_parts = primary_name.strip().split(" ")
                 primary_guest.first_name = name_parts[0] if name_parts else "Walk-In"
-                primary_guest.last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Guest"
+                primary_guest.last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
             if primary_email is not None:
                 primary_guest.email = primary_email
             if primary_phone is not None:
                 primary_guest.phone = primary_phone
             primary_guest.save()
+
+        if guest_names is not None:
+            # Sync / update names of non-primary guests
+            other_guests = instance.booking_guests.filter(is_primary=False).order_by("id")
+            for idx, g_name in enumerate(guest_names):
+                if idx < len(other_guests):
+                    parts = g_name.strip().split(" ")
+                    other_guests[idx].first_name = parts[0] if parts else "Guest"
+                    other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    other_guests[idx].save()
 
         if addons_data is not None:
             from booking_addon.models import BookingAddOn
