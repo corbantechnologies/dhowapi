@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import IsOwnerOrDhowManager, IsDhowManager
@@ -85,6 +85,39 @@ class BookingCancelView(APIView):
                 booking.table.save()
             except Exception:
                 pass
+
+        # Auto-create refund requests if there are completed payments
+        try:
+            from refund.models import Refund
+            from escrow.models import EscrowRecord
+            
+            completed_payments = booking.payments.filter(status="completed")
+            for payment in completed_payments:
+                # Calculate already refunded amount for this payment
+                refunded_sum = sum(rf.amount for rf in payment.refunds.filter(status__in=["pending", "processing", "completed"]))
+                remaining_refund = payment.amount - refunded_sum
+                
+                if remaining_refund > 0:
+                    # Look for associated escrow record in holding
+                    escrow = EscrowRecord.objects.filter(payment=payment, status="holding").first()
+                    if escrow:
+                        escrow.status = "reversed_to_guest"
+                        escrow.resolution_method = "booking_cancelled"
+                        escrow.save()
+                        
+                    Refund.objects.create(
+                        payment=payment,
+                        booking=booking,
+                        escrow=escrow,
+                        amount=remaining_refund,
+                        reason="other",
+                        status="pending",
+                        requested_by=request.user if request.user.is_authenticated else None,
+                        notes=f"Auto-created refund on manual booking cancellation. Original Ref: {payment.reference}"
+                    )
+        except Exception:
+            pass
+
 
         # Log status change
         try:
@@ -237,3 +270,51 @@ class BookingBulkCreateView(APIView):
                 {"detail": f"Failed to bulk register bookings: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class BookingPublicTicketView(APIView):
+    """
+    Publicly accessible detail endpoint for retrieving guest boarding passes.
+    Authorized implicitly by knowing the secure, unique booking reference code.
+    Only returns non-sensitive guest fields to prevent data leaks.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, reference):
+        booking = get_object_or_404(Booking, reference=reference)
+        
+        # Build safe customer payload
+        data = {
+            "reference": booking.reference,
+            "booked_by_name": booking.booked_by_name,
+            "party_size": booking.party_size,
+            "adult_count": booking.adult_count,
+            "child_count": booking.child_count,
+            "status": booking.status,
+            "status_display": booking.get_status_display(),
+            "schedule_date": booking.schedule.date.strftime("%Y-%m-%d") if booking.schedule.date else "",
+            "schedule_meal_type": booking.schedule.get_meal_type_display(),
+            "departure_time": booking.schedule.departure_time.strftime("%H:%M") if booking.schedule.departure_time else "",
+            "return_time": booking.schedule.return_time.strftime("%H:%M") if booking.schedule.return_time else "",
+            "dhow_name": booking.schedule.dhow.name if booking.schedule.dhow else "",
+            "table_number": booking.table_number,
+            "special_requests": booking.special_requests or "",
+            "booking_guests": [
+                {
+                    "first_name": g.first_name,
+                    "last_name": g.last_name,
+                    "is_primary": g.is_primary,
+                    "status": g.status
+                }
+                for g in booking.booking_guests.all()
+            ],
+            "booking_addons": [
+                {
+                    "addon_name": ba.addon.name,
+                    "quantity": ba.quantity
+                }
+                for ba in booking.booking_addons.all()
+            ]
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
