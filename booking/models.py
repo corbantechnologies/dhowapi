@@ -23,6 +23,7 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
     CANCELLATION_PREFERENCE_CHOICES = (
         ("reschedule", "Reschedule"),
         ("refund", "Refund"),
+        ("confirmed", "Confirmed (Sailing Guaranteed)"),
     )
 
     schedule = models.ForeignKey(

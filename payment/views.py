@@ -9,22 +9,43 @@ from payment.models import Payment
 from payment.serializers import PaymentSerializer, MpesaSTKInitiateSerializer
 from payment.utils import initiate_mpesa_stk_push
 from booking.models import Booking
+from schedule.permissions import HasManifestAccessToken
 
 
 class PaymentListCreateView(generics.ListCreateAPIView):
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated | HasManifestAccessToken]
     filterset_fields = ["booking", "status", "payment_method"]
     search_fields = ["reference", "transaction_ref", "receipt_number", "phone_number"]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_dhow_manager or user.is_staff or user.is_superuser:
-            return Payment.objects.all()
-        return Payment.objects.filter(paid_by=user)
+        if user.is_authenticated:
+            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+                return Payment.objects.all()
+            return Payment.objects.filter(paid_by=user)
+        # Supervisor unauthenticated queryset
+        schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
+        if schedule_ref:
+            return Payment.objects.filter(booking__schedule__reference=schedule_ref)
+        return Payment.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(paid_by=self.request.user)
+        user = self.request.user
+        if user.is_authenticated:
+            serializer.save(paid_by=user)
+        else:
+            schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
+            if not schedule_ref:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You do not have a valid manifest token.")
+            
+            booking = serializer.validated_data.get("booking")
+            if booking.schedule.reference != schedule_ref:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"booking": "You do not have permission to record payments for this booking."})
+            
+            serializer.save(paid_by=None)
 
 
 class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
