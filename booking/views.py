@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import IsOwnerOrDhowManager, IsDhowManager
+from schedule.permissions import HasManifestAccessToken
 from booking.models import Booking
 from booking.serializers import BookingSerializer
 
@@ -31,22 +32,59 @@ class BookingListCreateView(generics.ListCreateAPIView):
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Booking.objects.all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrDhowManager]
+    permission_classes = [IsAuthenticated | HasManifestAccessToken]
     lookup_field = "reference"
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+                return Booking.objects.all()
+            return Booking.objects.filter(booked_by=user)
+        # Unauthenticated access via manifest token — restrict to that schedule
+        schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
+        if schedule_ref:
+            return Booking.objects.filter(schedule__reference=schedule_ref)
+        return Booking.objects.none()
 
 
 class BookingCancelView(APIView):
-    permission_classes = [IsAuthenticated, IsOwnerOrDhowManager]
+    permission_classes = [IsAuthenticated | HasManifestAccessToken]
 
     def patch(self, request, reference):
         booking = get_object_or_404(Booking, reference=reference)
-        self.check_object_permissions(request, booking)
+
+        # Object-level permission — check if the actor can touch this booking
+        if request.user.is_authenticated:
+            # Standard auth: must be the owner or a dhow manager
+            perm = IsOwnerOrDhowManager()
+            if not perm.has_object_permission(request, self, booking):
+                return Response(
+                    {"detail": "You do not have permission to cancel this booking."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            # Manifest token access: verify booking belongs to the token's schedule
+            perm = HasManifestAccessToken()
+            if not perm.has_object_permission(request, self, booking):
+                return Response(
+                    {"detail": "You do not have permission to cancel this booking."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         old_status = booking.status
         booking.status = "cancelled"
         booking.save()
+
+        # Release table assignment if present
+        if booking.table:
+            try:
+                booking.table.assigned_to = None
+                booking.table.is_available = True
+                booking.table.save()
+            except Exception:
+                pass
 
         # Log status change
         try:
@@ -55,8 +93,50 @@ class BookingCancelView(APIView):
                 booking=booking,
                 old_status=old_status,
                 new_status="cancelled",
-                changed_by=request.user,
-                notes=request.data.get("notes", "Booking cancelled by user/manager"),
+                changed_by=request.user if request.user.is_authenticated else None,
+                notes=request.data.get("notes", "Booking cancelled by manager/supervisor"),
+            )
+        except ImportError:
+            pass
+
+        serializer = BookingSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BookingNoShowView(APIView):
+    """Mark a booking as no-show. Accessible by managers or via manifest token."""
+    permission_classes = [IsAuthenticated | HasManifestAccessToken]
+
+    def patch(self, request, reference):
+        booking = get_object_or_404(Booking, reference=reference)
+
+        if request.user.is_authenticated:
+            perm = IsOwnerOrDhowManager()
+            if not perm.has_object_permission(request, self, booking):
+                return Response(
+                    {"detail": "You do not have permission to update this booking."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            perm = HasManifestAccessToken()
+            if not perm.has_object_permission(request, self, booking):
+                return Response(
+                    {"detail": "You do not have permission to update this booking."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        old_status = booking.status
+        booking.status = "no_show"
+        booking.save()
+
+        try:
+            from booking_status_log.models import BookingStatusLog
+            BookingStatusLog.objects.create(
+                booking=booking,
+                old_status=old_status,
+                new_status="no_show",
+                changed_by=request.user if request.user.is_authenticated else None,
+                notes=request.data.get("notes", "Marked no-show by manager/supervisor"),
             )
         except ImportError:
             pass
@@ -157,4 +237,3 @@ class BookingBulkCreateView(APIView):
                 {"detail": f"Failed to bulk register bookings: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-

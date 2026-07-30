@@ -3,7 +3,6 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.core import signing
 from django.template.loader import render_to_string
 from django.conf import settings
 from datetime import datetime
@@ -145,10 +144,10 @@ class SchedulePublicManifestView(APIView):
     def get(self, request, reference):
         schedule = get_object_or_404(Schedule, reference=reference)
 
-        # Secure access check for shared token link
+        # Secure access check: validate manifest token matches this schedule
         if not request.user.is_authenticated:
-            token_ref = getattr(request, "manifest_schedule_ref", None)
-            if token_ref != reference:
+            token = request.headers.get("X-Manifest-Token") or request.query_params.get("token")
+            if not token or schedule.manifest_token != token:
                 return Response(
                     {"detail": "You do not have permission to view this manifest."},
                     status=status.HTTP_403_FORBIDDEN
@@ -237,10 +236,10 @@ class SchedulePDFDownloadView(APIView):
         try:
             schedule = get_object_or_404(Schedule, reference=reference)
 
-            # Secure access check for shared token link
+            # Secure access check: validate manifest token matches this schedule
             if not request.user.is_authenticated:
-                token_ref = getattr(request, "manifest_schedule_ref", None)
-                if token_ref != reference:
+                token = request.headers.get("X-Manifest-Token") or request.query_params.get("token")
+                if not token or schedule.manifest_token != token:
                     return HttpResponse("Forbidden", status=403)
 
             # Get all confirmed or completed/pending bookings for this schedule
@@ -338,13 +337,14 @@ class ScheduleShareView(APIView):
         schedule = get_object_or_404(Schedule, reference=reference)
         recipient_email = request.data.get("email")
 
-        # Generate signed token valid for 24 hours (86400 seconds)
-        payload = {"schedule_ref": reference}
-        token = signing.dumps(payload, salt="manifest-share", compress=True)
+        # Ensure a permanent token exists (auto-generated on first schedule save)
+        if not schedule.manifest_token:
+            schedule.manifest_token = __import__("uuid").uuid4().hex
+            schedule.save(update_fields=["manifest_token"])
 
         # Use the configured FRONTEND_URL from settings to build the public manifest link
         frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
-        share_url = f"{frontend_url}/manifest/{reference}?token={token}"
+        share_url = f"{frontend_url}/manifest/{reference}?token={schedule.manifest_token}"
 
         # Send email to supervisor if email is provided
         if recipient_email:
