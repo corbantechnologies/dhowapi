@@ -9,6 +9,7 @@ class Package(UniversalIdModel, TimeStampedModel, ReferenceModel):
         ("booze_cruise", "Booze Cruise"),
         ("special_cruise", "Special Cruise"),
         ("dinner_cruise", "Dinner Cruise"),
+        ("exclusive_cruise", "Exclusive Cruise"),
     )
 
     name = models.CharField(max_length=255)

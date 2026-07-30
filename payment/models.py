@@ -9,7 +9,11 @@ class Payment(UniversalIdModel, TimeStampedModel, ReferenceModel):
         ("cash", "Cash"),
         ("agent_credit", "Agent Credit"),
         ("waived", "Waived"),
+        ("staff_card", "Staff Card"),
+        ("mastercard", "Mastercard"),
+        ("visa", "Visa"),
     )
+
 
     STATUS_CHOICES = (
         ("pending", "Pending"),
