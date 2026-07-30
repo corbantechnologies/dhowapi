@@ -109,11 +109,13 @@ class BookingSerializer(serializers.ModelSerializer):
         if guest_names:
             other_guests = booking.booking_guests.filter(is_primary=False).order_by("id")
             for idx, g_name in enumerate(guest_names):
-                if idx < len(other_guests) and g_name.strip():
-                    parts = g_name.strip().split(" ")
-                    other_guests[idx].first_name = parts[0] if parts else "Guest"
-                    other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-                    other_guests[idx].save()
+                if idx < len(other_guests):
+                    cleaned_name = g_name.strip() if g_name else ""
+                    if cleaned_name:
+                        parts = cleaned_name.split(" ")
+                        other_guests[idx].first_name = parts[0] if parts else "Guest"
+                        other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                        other_guests[idx].save()
 
         # Create nested addons
         from booking_addon.models import BookingAddOn
@@ -159,9 +161,14 @@ class BookingSerializer(serializers.ModelSerializer):
             other_guests = instance.booking_guests.filter(is_primary=False).order_by("id")
             for idx, g_name in enumerate(guest_names):
                 if idx < len(other_guests):
-                    parts = g_name.strip().split(" ")
-                    other_guests[idx].first_name = parts[0] if parts else "Guest"
-                    other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    cleaned_name = g_name.strip() if g_name else ""
+                    if cleaned_name:
+                        parts = cleaned_name.split(" ")
+                        other_guests[idx].first_name = parts[0] if parts else "Guest"
+                        other_guests[idx].last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    else:
+                        other_guests[idx].first_name = "Guest"
+                        other_guests[idx].last_name = str(idx + 2)
                     other_guests[idx].save()
 
         if addons_data is not None:
