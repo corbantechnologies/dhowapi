@@ -184,9 +184,32 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
                 )
         else:
             if self.status == "completed":
+                # Update any still-pending guest records to checked_in
                 self.booking_guests.filter(status="pending").update(status="checked_in")
+                # Auto-create a completion payment for any outstanding balance
+                try:
+                    from decimal import Decimal
+                    from payment.models import Payment
+                    balance = self.outstanding_balance
+                    if balance > Decimal("0.00"):
+                        # Reuse the last used payment method, defaulting to cash
+                        last_payment = self.payments.filter(status="completed").order_by("-created_at").first()
+                        method = last_payment.payment_method if last_payment else "cash"
+                        Payment.objects.create(
+                            booking=self,
+                            amount=balance,
+                            payment_method=method,
+                            status="completed",
+                            notes=(
+                                f"Auto-collected balance on sailing completion. "
+                                f"Method: {method.upper()}"
+                            ),
+                        )
+                except Exception:
+                    pass
             elif self.status == "no_show":
                 self.booking_guests.filter(status="pending").update(status="no_show")
+
 
     def __str__(self):
         email = self.booked_by.email if self.booked_by else "No Owner"

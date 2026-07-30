@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from django.db.models import Sum
@@ -63,6 +64,13 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
     )
     cancelled_reason = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    manifest_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Permanent public manifest sharing token (UUID hex)",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -80,16 +88,18 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
         return f"{self.dhow.name} - {self.date} {self.get_meal_type_display()} ({self.get_status_display()})"
 
     def save(self, *args, **kwargs):
+        # Auto-generate a permanent manifest token on first save
+        if not self.manifest_token:
+            self.manifest_token = uuid.uuid4().hex
         if self.status in ["completed", "cancelled"]:
             self.is_open = False
         super().save(*args, **kwargs)
         if self.status == "completed":
-            self.bookings.filter(status__in=["pending", "confirmed"]).update(status="completed")
-            from booking_guest.models import BookingGuest
-            BookingGuest.objects.filter(
-                booking__schedule=self,
-                status="pending"
-            ).update(status="checked_in")
+            # Iterate and call b.save() on each booking so that all model
+            # hooks fire (payment auto-generation, guest status sync, etc.)
+            for b in self.bookings.filter(status__in=["pending", "confirmed"]):
+                b.status = "completed"
+                b.save()
 
     @property
     def current_pax_count(self):
