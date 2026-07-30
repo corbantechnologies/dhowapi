@@ -68,6 +68,7 @@ class BaseUserSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
             "is_dhow_manager",
+            "is_supervisor",
             "is_guest",
             "is_agent",
             "is_active",
@@ -117,6 +118,26 @@ class DhowManagerSerializer(BaseUserSerializer):
         user.save()
 
         # Send temporary password via email
+        send_account_created_by_admin_email(user, temp_password)
+
+        return user
+
+
+class SupervisorUserSerializer(BaseUserSerializer):
+    """
+    Supervisor User Serializer
+    """
+    password = serializers.CharField(
+        required=False, write_only=True, allow_blank=True, allow_null=True
+    )
+
+    def create(self, validated_data):
+        temp_password = generate_temp_password()
+        validated_data["password"] = temp_password
+
+        user = self.create_user(validated_data, "is_supervisor")
+        user.save()
+
         send_account_created_by_admin_email(user, temp_password)
 
         return user

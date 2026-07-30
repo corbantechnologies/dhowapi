@@ -19,7 +19,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+            if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
                 return Booking.objects.all()
             return Booking.objects.filter(booked_by=user)
         # Supervisor unauthenticated queryset filter
@@ -31,7 +31,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         if user.is_authenticated:
-            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+            if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
                 booked_by = serializer.validated_data.get("booked_by", None)
             else:
                 booked_by = serializer.validated_data.get("booked_by", user)
@@ -59,7 +59,7 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+            if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
                 return Booking.objects.all()
             return Booking.objects.filter(booked_by=user)
         # Unauthenticated access via manifest token — restrict to that schedule
