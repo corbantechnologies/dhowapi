@@ -17,10 +17,11 @@ from accounts.serializers import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
     DhowManagerSerializer,
+    SupervisorUserSerializer,
     GuestUserSerializer,
     AgentUserSerializer,
 )
-from accounts.permissions import IsSystemAdminOrReadOnly
+from accounts.permissions import IsSystemAdminOrReadOnly, IsDhowManager
 
 User = get_user_model()
 
@@ -55,6 +56,7 @@ class TokenView(APIView):
                         "phone_number": user.phone_number,
                         "is_guest": user.is_guest,
                         "is_dhow_manager": user.is_dhow_manager,
+                        "is_supervisor": user.is_supervisor,
                         "is_agent": user.is_agent,
                         "is_active": user.is_active,
                         "is_staff": user.is_staff,
@@ -101,6 +103,12 @@ Create Users
 class DhowManagerCreateView(generics.CreateAPIView):
     permission_classes = (IsSystemAdminOrReadOnly,)
     serializer_class = DhowManagerSerializer
+    queryset = User.objects.all()
+
+
+class SupervisorCreateView(generics.CreateAPIView):
+    permission_classes = (IsDhowManager,)
+    serializer_class = SupervisorUserSerializer
     queryset = User.objects.all()
 
 

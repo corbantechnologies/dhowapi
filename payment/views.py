@@ -21,7 +21,7 @@ class PaymentListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            if user.is_dhow_manager or user.is_staff or user.is_superuser:
+            if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
                 return Payment.objects.all()
             return Payment.objects.filter(paid_by=user)
         # Supervisor unauthenticated queryset
@@ -55,7 +55,7 @@ class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_dhow_manager or user.is_staff or user.is_superuser:
+        if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
             return Payment.objects.all()
         return Payment.objects.filter(paid_by=user)
 
