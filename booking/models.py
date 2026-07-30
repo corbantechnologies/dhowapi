@@ -157,7 +157,7 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
             if name:
                 name_parts = name.strip().split(" ")
                 first_name = name_parts[0] if name_parts else "Walk-In"
-                last_name = name_parts[1] if len(name_parts) > 1 else "Guest"
+                last_name = name_parts[1] if len(name_parts) > 1 else ""
                 if len(name_parts) > 2:
                     last_name = " ".join(name_parts[1:])
             elif self.booked_by:

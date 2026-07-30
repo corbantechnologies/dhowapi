@@ -15,7 +15,7 @@ class BookingGuest(UniversalIdModel, TimeStampedModel):
         related_name="booking_guests",
     )
     first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150, blank=True, default="")
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     dietary_needs = models.TextField(blank=True, null=True)
