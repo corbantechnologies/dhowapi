@@ -206,6 +206,18 @@ class SchedulePublicManifestView(APIView):
                 "status": b.status,
                 "booking_guests": guests_data,
                 "booking_addons": addons_data,
+                "total_amount": float(b.total_amount),
+                "total_paid": float(b.total_paid),
+                "outstanding_balance": float(b.outstanding_balance),
+                "discount_amount": float(b.discount_amount),
+                "payments": [
+                    {
+                        "amount": float(p.amount),
+                        "payment_method": p.get_payment_method_display(),
+                        "ref": p.receipt_number or p.transaction_ref or p.reference
+                    }
+                    for p in b.payments.filter(status="completed")
+                ]
             })
 
         data = {
@@ -291,6 +303,18 @@ class SchedulePDFDownloadView(APIView):
                     "status": b.status,
                     "status_display": b.get_status_display(),
                     "addons_list": addons_list,
+                    "total_amount": float(b.total_amount),
+                    "total_paid": float(b.total_paid),
+                    "outstanding_balance": float(b.outstanding_balance),
+                    "discount_amount": float(b.discount_amount),
+                    "payments": [
+                        {
+                            "amount": float(p.amount),
+                            "payment_method": p.get_payment_method_display(),
+                            "ref": p.receipt_number or p.transaction_ref or p.reference
+                        }
+                        for p in b.payments.filter(status="completed")
+                    ]
                 })
 
             # Render HTML template natively on the backend
@@ -314,6 +338,8 @@ class SchedulePDFDownloadView(APIView):
 
                 pdf_bytes = page.pdf(
                     format="A4",
+                    landscape=True,
+                    prefer_css_page_size=True,
                     print_background=True,
                     margin={"top": "0.4in", "right": "0.4in", "bottom": "0.4in", "left": "0.4in"}
                 )
