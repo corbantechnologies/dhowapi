@@ -106,6 +106,12 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         blank=True,
         related_name="bookings_table",
     )
+    table_allocation = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Direct table allocation name/number (e.g. Table 5, T10)"
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

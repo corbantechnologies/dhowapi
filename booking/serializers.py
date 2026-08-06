@@ -67,6 +67,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "internal_notes",
             "table",
             "table_number",
+            "table_allocation",
             "total_amount",
             "custom_price_per_person",
             "custom_price_per_child",
@@ -249,6 +250,8 @@ class BookingSerializer(serializers.ModelSerializer):
         return obj.booked_by.email if obj.booked_by else ""
 
     def get_table_number(self, obj):
+        if obj.table_allocation:
+            return obj.table_allocation
         tables = obj.assigned_tables.all()
         if tables.exists():
             return ", ".join([t.table_number for t in tables])

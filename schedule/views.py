@@ -163,7 +163,7 @@ class SchedulePublicManifestView(APIView):
         for b in bookings:
             # Get table numbers
             tables = b.assigned_tables.all()
-            table_numbers = ", ".join([t.table_number for t in tables]) if tables.exists() else ""
+            table_numbers = b.table_allocation or (", ".join([t.table_number for t in tables]) if tables.exists() else "")
 
             # Get guests details
             guests_data = []
@@ -202,6 +202,7 @@ class SchedulePublicManifestView(APIView):
                 "adult_count": b.adult_count,
                 "child_count": b.child_count,
                 "table_number": table_numbers,
+                "table_allocation": b.table_allocation,
                 "special_requests": b.special_requests or "",
                 "status": b.status,
                 "booking_guests": guests_data,
@@ -266,7 +267,7 @@ class SchedulePDFDownloadView(APIView):
             for b in bookings:
                 # Table seating allocation
                 tables = b.assigned_tables.all()
-                table_number = ", ".join([t.table_number for t in tables]) if tables.exists() else ""
+                table_number = b.table_allocation or (", ".join([t.table_number for t in tables]) if tables.exists() else "")
 
                 # Resolve primary guest details
                 primary_guest = b.booking_guests.filter(is_primary=True).first()
@@ -299,6 +300,7 @@ class SchedulePDFDownloadView(APIView):
                     "adult_count": b.adult_count,
                     "child_count": b.child_count,
                     "table_number": table_number,
+                    "table_allocation": b.table_allocation,
                     "special_requests": b.special_requests or "",
                     "status": b.status,
                     "status_display": b.get_status_display(),
