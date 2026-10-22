@@ -58,6 +58,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -112,7 +113,10 @@ WSGI_APPLICATION = "dhowapi.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-db_config = dj_database_url.config(default=config("DATABASE_URL"))
+# Reuse database connections between requests instead of reconnecting every time
+db_config = dj_database_url.config(
+    default=config("DATABASE_URL"), conn_max_age=600, conn_health_checks=True
+)
 DATABASES = {"default": db_config}
 
 

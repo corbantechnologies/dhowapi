@@ -13,7 +13,7 @@ from schedule.serializers import ScheduleSerializer
 
 
 class ScheduleListCreateView(generics.ListCreateAPIView):
-    queryset = Schedule.objects.all()
+    queryset = Schedule.objects.with_pax()
     serializer_class = ScheduleSerializer
     permission_classes = [IsDhowManagerOrReadOnly]
     filterset_fields = ["dhow", "date", "meal_type", "status", "is_open", "is_exclusive"]
@@ -24,7 +24,7 @@ class ScheduleListCreateView(generics.ListCreateAPIView):
 
 
 class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Schedule.objects.all()
+    queryset = Schedule.objects.with_pax()
     serializer_class = ScheduleSerializer
     permission_classes = [IsDhowManagerOrReadOnly]
     lookup_field = "reference"
@@ -138,6 +138,17 @@ from rest_framework.permissions import IsAuthenticated
 from schedule.permissions import HasManifestAccessToken
 
 
+def completed_payments_prefetch():
+    from django.db.models import Prefetch
+    from payment.models import Payment
+
+    return Prefetch(
+        "payments",
+        queryset=Payment.objects.filter(status="completed"),
+        to_attr="completed_payments",
+    )
+
+
 class SchedulePublicManifestView(APIView):
     permission_classes = [IsAuthenticated | HasManifestAccessToken]
 
@@ -154,20 +165,23 @@ class SchedulePublicManifestView(APIView):
                 )
 
         # Get all confirmed or completed bookings for this schedule
-        bookings = schedule.bookings.filter(
-            status__in=["confirmed", "completed", "pending", "no_show"]
-        ).order_by("created_at")
+        bookings = (
+            schedule.bookings.with_details()
+            .filter(status__in=["confirmed", "completed", "pending", "no_show"])
+            .prefetch_related(completed_payments_prefetch())
+            .order_by("created_at")
+        )
 
         # Format manifest records
         manifest_data = []
         for b in bookings:
             # Get table numbers
             tables = b.assigned_tables.all()
-            table_numbers = b.table_allocation or (", ".join([t.table_number for t in tables]) if tables.exists() else "")
+            table_numbers = b.table_allocation or ", ".join([t.table_number for t in tables])
 
             # Get guests details
             guests_data = []
-            for g in b.booking_guests.all().order_by("id"):
+            for g in sorted(b.booking_guests.all(), key=lambda g: g.id):
                 guests_data.append({
                     "id": g.id,
                     "first_name": g.first_name,
@@ -178,7 +192,7 @@ class SchedulePublicManifestView(APIView):
                     "status": g.status,
                 })
 
-            primary_guest = b.booking_guests.filter(is_primary=True).first()
+            primary_guest = next((g for g in b.booking_guests.all() if g.is_primary), None)
             if primary_guest:
                 booked_by_name = f"{primary_guest.first_name} {primary_guest.last_name}"
             elif b.booked_by:
@@ -217,7 +231,7 @@ class SchedulePublicManifestView(APIView):
                         "payment_method": p.get_payment_method_display(),
                         "ref": p.receipt_number or p.transaction_ref or p.reference
                     }
-                    for p in b.payments.filter(status="completed")
+                    for p in b.completed_payments
                 ]
             })
 
@@ -259,18 +273,21 @@ class SchedulePDFDownloadView(APIView):
                     return HttpResponse("Forbidden", status=403)
 
             # Get all confirmed or completed/pending bookings for this schedule
-            bookings = schedule.bookings.filter(
-                status__in=["confirmed", "completed", "pending", "no_show"]
-            ).order_by("created_at")
+            bookings = (
+                schedule.bookings.with_details()
+                .filter(status__in=["confirmed", "completed", "pending", "no_show"])
+                .prefetch_related(completed_payments_prefetch())
+                .order_by("created_at")
+            )
 
             manifest_list = []
             for b in bookings:
                 # Table seating allocation
                 tables = b.assigned_tables.all()
-                table_number = b.table_allocation or (", ".join([t.table_number for t in tables]) if tables.exists() else "")
+                table_number = b.table_allocation or ", ".join([t.table_number for t in tables])
 
                 # Resolve primary guest details
-                primary_guest = b.booking_guests.filter(is_primary=True).first()
+                primary_guest = next((g for g in b.booking_guests.all() if g.is_primary), None)
                 if primary_guest:
                     booked_by_name = f"{primary_guest.first_name} {primary_guest.last_name}"
                     email = primary_guest.email or ""
@@ -315,7 +332,7 @@ class SchedulePDFDownloadView(APIView):
                             "payment_method": p.get_payment_method_display(),
                             "ref": p.receipt_number or p.transaction_ref or p.reference
                         }
-                        for p in b.payments.filter(status="completed")
+                        for p in b.completed_payments
                     ]
                 })
 

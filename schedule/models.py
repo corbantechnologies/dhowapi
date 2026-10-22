@@ -5,6 +5,27 @@ from django.db.models import Sum
 from accounts.abstracts import UniversalIdModel, TimeStampedModel, ReferenceModel
 
 
+class ScheduleQuerySet(models.QuerySet):
+    def with_pax(self):
+        """Count booked guests in the same query, instead of once per schedule field."""
+        from django.db.models import IntegerField, OuterRef, Subquery, Value
+        from django.db.models.functions import Coalesce
+        from booking.models import Booking
+
+        pax = (
+            Booking.objects.filter(
+                schedule=OuterRef("pk"), status__in=["pending", "confirmed", "completed"]
+            )
+            .order_by()
+            .values("schedule")
+            .annotate(total=Sum("party_size"))
+            .values("total")
+        )
+        return self.select_related("dhow").annotate(
+            _pax_count=Coalesce(Subquery(pax), Value(0), output_field=IntegerField())
+        )
+
+
 class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
     MEAL_TYPE_CHOICES = (
         ("lunch", "Lunch"),
@@ -84,6 +105,8 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
         verbose_name_plural = "Schedules"
         ordering = ["date", "departure_time"]
 
+    objects = ScheduleQuerySet.as_manager()
+
     def __str__(self):
         return f"{self.dhow.name} - {self.date} {self.get_meal_type_display()} ({self.get_status_display()})"
 
@@ -93,6 +116,7 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
             self.manifest_token = uuid.uuid4().hex
         if self.status in ["completed", "cancelled"]:
             self.is_open = False
+        self.__dict__.pop("_pax_count", None)
         super().save(*args, **kwargs)
         if self.status == "completed":
             # Iterate and call b.save() on each booking so that all model
@@ -104,6 +128,8 @@ class Schedule(UniversalIdModel, TimeStampedModel, ReferenceModel):
     @property
     def current_pax_count(self):
         # Calculate total confirmed/pending guests booked on this schedule
+        if "_pax_count" in self.__dict__:
+            return self._pax_count
         total = (
             self.bookings.filter(status__in=["pending", "confirmed", "completed"]).aggregate(
                 total_pax=Sum("party_size")

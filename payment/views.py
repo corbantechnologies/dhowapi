@@ -22,12 +22,12 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if user.is_authenticated:
             if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
-                return Payment.objects.all()
-            return Payment.objects.filter(paid_by=user)
+                return Payment.objects.select_related("booking", "paid_by")
+            return Payment.objects.select_related("booking", "paid_by").filter(paid_by=user)
         # Supervisor unauthenticated queryset
         schedule_ref = getattr(self.request, "manifest_schedule_ref", None)
         if schedule_ref:
-            return Payment.objects.filter(booking__schedule__reference=schedule_ref)
+            return Payment.objects.select_related("booking", "paid_by").filter(booking__schedule__reference=schedule_ref)
         return Payment.objects.none()
 
     def perform_create(self, serializer):
@@ -56,8 +56,8 @@ class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_dhow_manager or user.is_supervisor or user.is_staff or user.is_superuser:
-            return Payment.objects.all()
-        return Payment.objects.filter(paid_by=user)
+            return Payment.objects.select_related("booking", "paid_by")
+        return Payment.objects.select_related("booking", "paid_by").filter(paid_by=user)
 
 
 class MpesaSTKInitiateView(APIView):

@@ -237,14 +237,18 @@ class BookingSerializer(serializers.ModelSerializer):
         return attrs
 
 
+    def _primary_guest(self, obj):
+        # Reads the prefetched guests; they are ordered primary first
+        return next((g for g in obj.booking_guests.all() if g.is_primary), None)
+
     def get_booked_by_name(self, obj):
-        primary_guest = obj.booking_guests.filter(is_primary=True).first()
+        primary_guest = self._primary_guest(obj)
         if primary_guest:
             return f"{primary_guest.first_name} {primary_guest.last_name}"
         return obj.booked_by.get_full_name() if obj.booked_by else ""
 
     def get_booked_by_email(self, obj):
-        primary_guest = obj.booking_guests.filter(is_primary=True).first()
+        primary_guest = self._primary_guest(obj)
         if primary_guest and primary_guest.email:
             return primary_guest.email
         return obj.booked_by.email if obj.booked_by else ""
@@ -253,7 +257,7 @@ class BookingSerializer(serializers.ModelSerializer):
         if obj.table_allocation:
             return obj.table_allocation
         tables = obj.assigned_tables.all()
-        if tables.exists():
+        if tables:
             return ", ".join([t.table_number for t in tables])
         return ""
 

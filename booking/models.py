@@ -3,6 +3,34 @@ from django.conf import settings
 from accounts.abstracts import UniversalIdModel, TimeStampedModel, ReferenceModel
 
 
+class BookingQuerySet(models.QuerySet):
+    def with_details(self):
+        """Load what BookingSerializer reads up front, so a list costs a fixed number of queries."""
+        from decimal import Decimal
+        from django.db.models import DecimalField, OuterRef, Subquery, Sum, Value
+        from django.db.models.functions import Coalesce
+        from payment.models import Payment
+
+        completed_paid = (
+            Payment.objects.filter(booking=OuterRef("pk"), status="completed")
+            .order_by()
+            .values("booking")
+            .annotate(total=Sum("amount"))
+            .values("total")
+        )
+        return (
+            self.select_related("schedule", "package", "booked_by")
+            .prefetch_related("booking_guests", "booking_addons__addon", "assigned_tables")
+            .annotate(
+                _completed_paid=Coalesce(
+                    Subquery(completed_paid),
+                    Value(Decimal("0.00")),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                )
+            )
+        )
+
+
 class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
     BOOKING_TYPE_CHOICES = (
         ("individual", "Individual"),
@@ -125,6 +153,8 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
         verbose_name_plural = "Bookings"
         ordering = ["-created_at"]
 
+    objects = BookingQuerySet.as_manager()
+
     def save(self, *args, **kwargs):
         from decimal import Decimal
         unit_price = (
@@ -150,6 +180,8 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
             self.discount_amount = self.discount_value or Decimal("0.00")
 
         is_new = self._state.adding
+        # Payments may change below, so drop the pre-loaded total
+        self.__dict__.pop("_completed_paid", None)
         super().save(*args, **kwargs)
         if is_new:
             from booking_guest.models import BookingGuest
@@ -279,6 +311,8 @@ class Booking(UniversalIdModel, TimeStampedModel, ReferenceModel):
     @property
     def total_paid(self):
         from decimal import Decimal
+        if "_completed_paid" in self.__dict__:
+            return Decimal(str(self._completed_paid))
         total = self.payments.filter(status="completed").aggregate(
             total=models.Sum('amount')
         )['total']
