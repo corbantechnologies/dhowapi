@@ -26,6 +26,18 @@ from dhowapi.settings import DOMAIN
 
 User = get_user_model()
 
+# Role and status flags. Only system admins may change these, and never on their own account.
+PRIVILEGED_FIELDS = (
+    "is_staff",
+    "is_superuser",
+    "is_dhow_manager",
+    "is_supervisor",
+    "is_guest",
+    "is_agent",
+    "is_active",
+)
+SUPERUSER_ONLY_FIELDS = ("is_staff", "is_superuser")
+
 
 class BaseUserSerializer(serializers.ModelSerializer):
     """Base Serializer to include common user fields"""
@@ -76,6 +88,46 @@ class BaseUserSerializer(serializers.ModelSerializer):
             "updated_at",
             "reference",
         )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get("request")
+
+        if self.instance is None:
+            # Signup endpoints set the role themselves; ignore any flags sent by the client.
+            for field in PRIVILEGED_FIELDS:
+                attrs.pop(field, None)
+            return attrs
+
+        if request is None:
+            return attrs
+
+        user = request.user
+        changed = [
+            field
+            for field in PRIVILEGED_FIELDS
+            if field in attrs and attrs[field] != getattr(self.instance, field)
+        ]
+        if changed:
+            if not (user.is_superuser or user.is_staff):
+                raise serializers.ValidationError(
+                    {"detail": "Only administrators can change roles or account status."}
+                )
+            if not user.is_superuser and any(f in SUPERUSER_ONLY_FIELDS for f in changed):
+                raise serializers.ValidationError(
+                    {"detail": "Only superusers can grant or remove admin access."}
+                )
+            if self.instance.pk == user.pk:
+                raise serializers.ValidationError(
+                    {"detail": "You cannot change your own role or account status."}
+                )
+
+        if attrs.get("password") and self.instance.pk != user.pk:
+            raise serializers.ValidationError(
+                {"password": "You can only change your own password."}
+            )
+
+        return attrs
 
     def create_user(self, validated_data, role_field):
         """

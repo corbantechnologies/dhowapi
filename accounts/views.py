@@ -10,6 +10,7 @@ from rest_framework.authtoken.models import Token
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from accounts.serializers import (
     BaseUserSerializer,
@@ -21,7 +22,18 @@ from accounts.serializers import (
     GuestUserSerializer,
     AgentUserSerializer,
 )
-from accounts.permissions import IsSystemAdminOrReadOnly, IsDhowManager
+from accounts.validators import (
+    validate_password_digit,
+    validate_password_uppercase,
+    validate_password_symbol,
+    validate_password_lowercase,
+)
+from accounts.permissions import (
+    IsSystemAdminOrReadOnly,
+    IsDhowManager,
+    IsSuperuser,
+    IsSelfOrSystemAdmin,
+)
 
 User = get_user_model()
 
@@ -84,12 +96,12 @@ class TokenView(APIView):
 All Users
 """
 class UserListView(generics.ListAPIView):
-    permission_classes = (IsSystemAdminOrReadOnly,)
+    permission_classes = (IsDhowManager,)
     serializer_class = BaseUserSerializer
     queryset = User.objects.all()
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsSelfOrSystemAdmin,)
     serializer_class = BaseUserSerializer
     queryset = User.objects.all()
     lookup_field = "usercode"
@@ -209,8 +221,9 @@ class ActivateAccountView(APIView):
 
 class SuperuserCreateView(APIView):
     def get_permissions(self):
+        # Bootstrap: anyone may create the very first superuser; after that, only superusers.
         if User.objects.filter(is_superuser=True).exists():
-            return [IsAuthenticated()]
+            return [IsSuperuser()]
         return [AllowAny()]
 
     def post(self, request, *args, **kwargs):
@@ -225,6 +238,17 @@ class SuperuserCreateView(APIView):
                 {"error": "email, password, username, first_name, and last_name are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        try:
+            for validator in (
+                validate_password_digit,
+                validate_password_uppercase,
+                validate_password_symbol,
+                validate_password_lowercase,
+            ):
+                validator(password)
+        except DjangoValidationError as e:
+            return Response({"error": e.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(email=email).exists():
             return Response(
@@ -262,4 +286,4 @@ class SuperuserCreateView(APIView):
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
-            )
+            )
